@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Nouvel horizon d'emploi - Opportunités pour Réfugiés</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- FIREBASE SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --p: #1a237e; --pd: #0d1b6e; --a: #ff6f00; --s: #2e7d32;
+            --d: #c62828; --w: #f57c00; --bg: #f5f7fa; --wht: #ffffff;
+            --tx: #212121; --t2: #616161; --bdr: #e0e0e0;
+            --sh: 0 2px 10px rgba(0,0,0,.08); --shl: 0 8px 30px rgba(0,0,0,.12);
+            --r: 12px;
+        }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg); color: var(--tx); line-height: 1.6;
+            min-height: 100vh; display: flex; flex-direction: column;
+        }
+        body.rtl { direction: rtl; text-align: right; }
+        
+        /* SIDEBAR */
+        .sidebar {
+            position: fixed; top: 0; left: -280px; width: 280px; height: 100%;
+            background: var(--wht); box-shadow: 2px 0 10px rgba(0,0,0,0.15);
+            z-index: 2000; transition: left 0.3s ease; display: flex; flex-direction: column;
+        }
+        body.rtl .sidebar { left: auto; right: -280px; }
+        .sidebar.open { left: 0; }
+        body.rtl .sidebar.open { left: auto; right: 0; }
+        .sidebar-header { padding: 1.5rem; background: var(--p); color: white; text-align: center; }
+        .sidebar-header img { width: 70px; height: 70px; object-fit: contain; border-radius: 50%; background: white; padding: 5px; margin-bottom: 10px; }
+        .sidebar-nav { flex: 1; padding: 1rem 0; }
+        .sidebar-nav a { display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: var(--tx); text-decoration: none; transition: 0.2s; font-weight: 500; }
+        .sidebar-nav a i { width: 24px; color: var(--p); }
+        .sidebar-nav a:hover { background: #e3f2fd; }
+        .overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1999; display: none; }
+        .overlay.active { display: block; }
+        .menu-toggle { background: none; border: none; font-size: 1.3rem; cursor: pointer; color: var(--p); padding: 0.5rem; margin-right: 0.5rem; }
+        body.rtl .menu-toggle { margin-right: 0; margin-left: 0.5rem; }
+        
+        /* NAVBAR */
+        .disclaimer-bar { background: #fff3e0; padding: .4rem 1rem; text-align: center; font-size: .7rem; border-bottom: 2px solid var(--w); position: sticky; top: 0; z-index: 102; color: #e65100; font-weight: 600; }
+        .navbar { background: var(--wht); box-shadow: var(--sh); position: sticky; top: 30px; z-index: 101; }
+        .nav-inner { max-width: 1200px; margin: 0 auto; padding: 0 1rem; display: flex; align-items: center; justify-content: space-between; height: 60px; }
+        .nav-brand { display: flex; align-items: center; gap: .5rem; font-size: 1rem; font-weight: 700; color: var(--p); text-decoration: none; }
+        .nav-logo { width: 40px; height: 40px; object-fit: contain; border-radius: 8px; background: white; padding: 2px; border: 1px solid var(--bdr); }
+        .nav-menu { display: flex; align-items: center; gap: .75rem; }
+        .nav-links { display: flex; list-style: none; gap: .2rem; flex-wrap: wrap; }
+        .nav-links a { padding: .4rem .7rem; border-radius: 20px; color: var(--tx); text-decoration: none; font-weight: 500; font-size: .8rem; cursor: pointer; }
+        .nav-links a:hover, .nav-links a.active { background: #e3f2fd; color: var(--p); }
+        .nav-actions { display: flex; gap: .4rem; align-items: center; flex-wrap: wrap; }
+        
+        /* BUTTONS */
+        .btn { padding: .5rem 1rem; border-radius: 20px; font-weight: 600; font-size: .8rem; cursor: pointer; border: 2px solid transparent; display: inline-flex; align-items: center; gap: .4rem; text-decoration: none; transition: .2s; }
+        .btn-primary { background: var(--p); color: #fff; }
+        .btn-primary:hover { background: var(--pd); }
+        .btn-outline { background: transparent; border-color: var(--p); color: var(--p); }
+        .btn-outline:hover { background: var(--p); color: #fff; }
+        .btn-danger { background: var(--d); color: #fff; }
+        .btn-sm { padding: .35rem .7rem; font-size: .75rem; }
+        .btn-block { width: 100%; justify-content: center; }
+        .section { padding: 2rem 1rem; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        h1, h2 { text-align: center; color: var(--p); margin-bottom: 1rem; }
+        .hidden { display: none !important; }
+        .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+        .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+        .card { background: var(--wht); padding: 1.2rem; border-radius: var(--r); box-shadow: var(--sh); border: 1px solid var(--bdr); transition: .2s; text-align: center; }
+        .card:hover { transform: translateY(-3px); box-shadow: var(--shl); }
+        .job-card { background: var(--wht); padding: 1rem; border-radius: var(--r); box-shadow: var(--sh); border-left: 4px solid var(--p); margin-bottom: 1rem; }
+        .badge { display: inline-block; padding: .15rem .5rem; border-radius: 15px; font-size: .65rem; font-weight: 600; margin: .1rem; }
+        .badge-blue { background: #e3f2fd; color: var(--p); }
+        .badge-green { background: #e8f5e9; color: var(--s); }
+        .form-box { max-width: 400px; margin: 0 auto; display: flex; flex-direction: column; gap: .75rem; }
+        .form-input, .form-select, .form-textarea { padding: .6rem .8rem; border: 2px solid var(--bdr); border-radius: 8px; font-size: .85rem; font-family: inherit; background: var(--wht); }
+        .form-textarea { min-height: 150px; resize: vertical; }
+        
+        /* EDITOR */
+        .editor-toolbar { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; background: #f0f0f0; padding: 0.5rem; border-radius: 8px; }
+        .editor-toolbar button { background: white; border: 1px solid #ccc; border-radius: 4px; padding: 4px 10px; cursor: pointer; font-weight: bold; }
+        .admin-tabs { display: flex; gap: .25rem; flex-wrap: wrap; margin-bottom: 1rem; }
+        .admin-tab { padding: .4rem .8rem; border: none; background: #eee; cursor: pointer; border-radius: 20px; font-weight: 600; font-size: .75rem; }
+        .admin-tab.active { background: var(--p); color: #fff; }
+        .admin-content { background: var(--wht); padding: 1rem; border-radius: var(--r); box-shadow: var(--sh); }
+        .footer { background: var(--p); color: #fff; padding: 1.5rem; margin-top: auto; text-align: center; font-size: .8rem; }
+        .toast-container { position: fixed; bottom: 1rem; right: 1rem; z-index: 9999; display: flex; flex-direction: column; gap: .4rem; }
+        .toast { padding: .6rem 1rem; border-radius: 8px; color: #fff; font-weight: 600; font-size: .8rem; box-shadow: var(--shl); animation: slideIn .3s ease; }
+        .toast-success { background: var(--s); }
+        .toast-error { background: var(--d); }
+        .toast-warning { background: var(--w); }
+        @keyframes slideIn { from { transform: translateX(100px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .loading { text-align: center; padding: 2rem; color: var(--t2); }
+        .section-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; }
+        @media(max-width:768px) { .nav-links { display: none; } .hero h1 { font-size: 1.5rem; } }
+    </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-header"><img id="sidebarLogo" src="" alt="Logo" style="display: none;"><h3>Nouvel horizon</h3></div>
+    <div class="sidebar-nav">
+        <a href="#home"><i class="fas fa-home"></i> Accueil</a>
+        <a href="#register"><i class="fas fa-user-plus"></i> Inscription</a>
+        <a href="#jobs"><i class="fas fa-briefcase"></i> Emplois</a>
+        <a href="#training"><i class="fas fa-graduation-cap"></i> Formations</a>
+        <a href="#videos"><i class="fas fa-video"></i> Vidéos</a>
+        <a href="#posters"><i class="fas fa-image"></i> Affiches</a>
+        <a href="#volunteering"><i class="fas fa-hands-helping"></i> Bénévolat</a>
+        <a href="#legal"><i class="fas fa-balance-scale"></i> Droit</a>
+        <a href="#forum-articles"><i class="fas fa-newspaper"></i> Articles</a>
+        <a href="#admin" id="adminLinkSidebar" class="hidden"><i class="fas fa-cog"></i> Admin</a>
+    </div>
+</div>
+<div class="overlay" id="overlay"></div>
+
+<div class="disclaimer-bar" id="disclaimerText">⚠️ Nous ne soutenons pas l'immigration illégale</div>
+
+<nav class="navbar">
+    <div class="nav-inner">
+        <div style="display: flex; align-items: center;">
+            <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+            <img id="navLogo" class="nav-logo" src="" alt="Logo" style="display: none;">
+            <a href="#home" class="nav-brand" id="brandName">Nouvel horizon d'emploi</a>
+        </div>
+        <div class="nav-menu">
+            <ul class="nav-links">
+                <li><a href="#home">Accueil</a></li><li><a href="#register">Inscription</a></li>
+                <li><a href="#jobs">Emplois</a></li><li><a href="#training">Formations</a></li>
+                <li><a href="#videos">Vidéos</a></li><li><a href="#posters">Affiches</a></li>
+                <li><a href="#volunteering">Bénévolat</a></li><li><a href="#legal">Droit</a></li>
+                <li><a href="#forum-articles">Articles</a></li>
+                <li><a href="#admin" id="adminLink" class="hidden">Admin</a></li>
+            </ul>
+            <div class="nav-actions">
+                <select id="langSwitch"><option value="fr">🇫🇷 FR</option><option value="en">🇬🇧 EN</option><option value="ar">🇸🇦 AR</option></select>
+                <button class="btn btn-outline btn-sm" id="btnLogin"><i class="fas fa-sign-in-alt"></i> Connexion</button>
+                <button class="btn btn-primary btn-sm" id="btnRegister"><i class="fas fa-user-plus"></i> Inscription</button>
+                <span id="userBadge" class="hidden"></span>
+                <button class="btn btn-outline btn-sm hidden" id="btnLogout"><i class="fas fa-sign-out-alt"></i> Déconnexion</button>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<main>
+    <!-- HOME -->
+    <section id="home" class="section">
+        <div class="container">
+            <div class="hero" style="text-align:center;padding:2rem 0;">
+                <h1 id="heroTitle">Bienvenue sur Nouvel horizon d'emploi</h1>
+                <p id="heroDesc">Plateforme dédiée à l'insertion professionnelle des réfugiés et migrants en France.</p>
+                <div style="display:flex;gap:1rem;justify-content:center;margin-top:1rem;">
+                    <a href="#register" class="btn btn-primary" id="heroCreateBtn">Créer un compte</a>
+                    <a href="#jobs" class="btn btn-outline" id="heroJobsBtn">Voir les offres</a>
+                </div>
+            </div>
+            <div class="grid-4">
+                <div class="card"><i class="fas fa-briefcase"></i><h3>Emplois</h3><p>Offres dans votre ville</p></div>
+                <div class="card"><i class="fas fa-graduation-cap"></i><h3>Formations</h3><p>Cours gratuits</p></div>
+                <div class="card"><i class="fas fa-balance-scale"></i><h3>Droits</h3><p>CESEDA, CEAS</p></div>
+                <div class="card"><i class="fas fa-video"></i><h3>Ressources</h3><p>Vidéos, affiches</p></div>
+            </div>
+            <div class="section-title"><h2>📝 Derniers articles</h2><a href="#forum-articles" class="view-all" onclick="showSection('forum-articles')">Voir tout →</a></div>
+            <div id="homeArticlesList" class="grid-2"><p class="loading">Chargement...</p></div>
+        </div>
+    </section>
+
+    <!-- REGISTER -->
+    <section id="register" class="section hidden"><div class="container" style="max-width:450px"><h2>Créer votre compte</h2><form id="formRegister" class="form-box"><input type="text" class="form-input" id="regName" placeholder="Nom complet" required><input type="email" class="form-input" id="regEmail" placeholder="Email" required><input type="password" class="form-input" id="regPass" placeholder="Mot de passe (6+)" required><input type="password" class="form-input" id="regPass2" placeholder="Confirmer" required><button type="submit" class="btn btn-primary btn-block">S'inscrire</button></form><p style="text-align:center;margin-top:1rem;">Déjà un compte ? <a href="#" onclick="showLogin()" style="color:var(--p);">Se connecter</a></p></div></section>
+
+    <!-- PROFILE -->
+    <section id="profile" class="section hidden"><div class="container" style="max-width:450px"><h2>Compléter votre profil</h2><form id="formProfile" class="form-box"><select class="form-select" id="profStatus" required><option value="">Statut *</option><option value="jobseeker">Demandeur d'emploi</option><option value="trainee">Stagiaire</option></select><select class="form-select" id="profCity" required><option value="">Ville *</option><option>Paris</option><option>Lyon</option><option>Marseille</option></select><select class="form-select" id="profLegal"><option value="">Situation</option><option value="asylum">Demandeur d'asile</option><option value="refugee">Réfugié</option></select><button type="submit" class="btn btn-primary btn-block">✓ Enregistrer</button></form></div></section>
+
+    <!-- JOBS -->
+    <section id="jobs" class="section"><div class="container"><h2>Offres d'Emploi</h2><div style="margin-bottom:1rem;"><input type="text" id="jobSearch" class="form-input" placeholder="🔍 Rechercher..." style="width:100%;"></div><div id="jobsList" class="grid-2"><p class="loading">Chargement...</p></div></div></section>
+
+    <!-- TRAINING -->
+    <section id="training" class="section"><div class="container"><h2>Formations</h2><div class="grid-3"><a href="https://coursera.org/refugees" target="_blank" class="card"><i class="fas fa-university"></i><h3>Coursera</h3><p>Cours gratuits</p></a><a href="https://linkedin.com/learning" target="_blank" class="card"><i class="fab fa-linkedin"></i><h3>LinkedIn Learning</h3><p>Compétences pro</p></a><a href="https://pole-emploi.fr" target="_blank" class="card"><i class="fas fa-building"></i><h3>Pôle Emploi</h3><p>Formations France</p></a></div></div></section>
+
+    <!-- VIDEOS -->
+    <section id="videos" class="section"><div class="container"><h2>Vidéos Éducatives</h2><div class="grid-3" id="videosList"><p class="loading">Chargement...</p></div></div></section>
+
+    <!-- POSTERS -->
+    <section id="posters" class="section"><div class="container"><h2>Affiches Informatives</h2><div class="grid-3" id="postersList"><p class="loading">Chargement...</p></div></div></section>
+
+    <!-- VOLUNTEERING -->
+    <section id="volunteering" class="section"><div class="container"><h2>Bénévolat</h2><div class="grid-2" id="volList"><p class="loading">Chargement...</p></div></div></section>
+
+    <!-- LEGAL -->
+    <section id="legal" class="section"><div class="container"><h2>Cadre Juridique</h2><div class="grid-3"><div class="card"><h3>🇫🇷 Loi Immigration</h3><p>CESEDA</p><a href="https://legifrance.gouv.fr" target="_blank" class="btn btn-outline btn-sm">Consulter →</a></div><div class="card"><h3>🇪🇺 Politique UE</h3><p>CEAS</p><a href="https://home-affairs.ec.europa.eu" target="_blank" class="btn btn-outline btn-sm">Consulter →</a></div><div class="card"><h3>🌍 Convention Genève</h3><p>1951</p><a href="https://unhcr.org/fr" target="_blank" class="btn btn-outline btn-sm">Consulter →</a></div></div></div></section>
+
+    <!-- FORUM / ARTICLES -->
+    <section id="forum-articles" class="section hidden">
+        <div class="container">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;">
+                <h2>📝 Forum & Articles</h2>
+                <button class="btn btn-primary btn-sm" onclick="toggleArticleForm()"><i class="fas fa-plus"></i> Écrire un article</button>
+            </div>
+            <div id="articleForm" class="hidden" style="background:white;padding:1rem;border-radius:var(--r);margin-bottom:2rem;">
+                <h3>✍️ Rédiger un article</h3>
+                <div class="editor-toolbar">
+                    <button type="button" onclick="wrapText('**','**')"><b>Bold</b></button>
+                    <button type="button" onclick="wrapText('*','*')"><i>Italic</i></button>
+                    <button type="button" onclick="wrapText('## ','')">H2</button>
+                    <button type="button" onclick="wrapText('> ','')">Quote</button>
+                    <button type="button" id="uploadImageBtn"><i class="fas fa-image"></i> Insérer image</button>
+                </div>
+                <input type="text" id="articleTitle" class="form-input" placeholder="Titre de l'article" style="margin-bottom:10px;">
+                <textarea id="articleContent" class="form-textarea" placeholder="Contenu de l'article... (Markdown: **gras**, *italique*)"></textarea>
+                <div style="display:flex;gap:10px;margin-top:10px;">
+                    <button class="btn btn-primary" onclick="publishArticle()">📢 Publier</button>
+                    <button class="btn btn-outline" onclick="toggleArticleForm()">Annuler</button>
+                </div>
+            </div>
+            <div id="articlesList" class="grid-2"><p class="loading">Chargement...</p></div>
+        </div>
+    </section>
+
+    <!-- ADMIN -->
+    <section id="admin" class="section hidden">
+        <div class="container">
+            <h2>🔧 Administration</h2>
+            <div class="admin-tabs">
+                <button class="admin-tab active" data-tab="dashboard">📊 Tableau</button>
+                <button class="admin-tab" data-tab="users">👥 Utilisateurs</button>
+                <button class="admin-tab" data-tab="jobs-manage">💼 Offres</button>
+                <button class="admin-tab" data-tab="videos-manage">🎬 Vidéos</button>
+                <button class="admin-tab" data-tab="posters-manage">🖼️ Affiches</button>
+                <button class="admin-tab" data-tab="articles-manage">📄 Articles</button>
+                <button class="admin-tab" data-tab="settings">⚙️ Logo</button>
+                <button class="admin-tab" data-tab="admins">🛡️ Admins</button>
+            </div>
+            <div class="admin-content" id="adminContent"></div>
+        </div>
+    </section>
+</main>
+
+<footer class="footer"><div class="container"><img id="footerLogo" src="" alt="Logo" style="width:50px;height:50px;display:none;margin-bottom:10px;"><p>© 2025 Nouvel horizon d'emploi - Conforme RGPD - France</p></div></footer>
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+    // ==================== FIREBASE CONFIG ====================
+    const firebaseConfig = {
+        apiKey: "AIzaSyB2TlPdeABj2DFzh8lSb0vpTQuCaBlqfvA",
+        authDomain: "organisation-d97e7.firebaseapp.com",
+        projectId: "organisation-d97e7",
+        storageBucket: "organisation-d97e7.firebasestorage.app",
+        messagingSenderId: "770760173166",
+        appId: "1:770760173166:web:09297aa9e2021a33eb687f"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    const storage = firebase.storage();
+    
+    // ==================== VARIABLES ====================
+    let currentUser = null;
+    let cachedJobs = [];
+    let cachedVideos = [];
+    let cachedPosters = [];
+    let cachedArticles = [];
+    let cachedAdmins = [];
+    let currentLang = 'fr';
+    
+    // Google Translate API Key (ضع مفتاحك هنا للترجمة الحقيقية)
+    const GOOGLE_TRANSLATE_API_KEY = "VOTRE_CLE_API_ICI";
+    
+    // ==================== HELPERS ====================
+    function toast(msg, type = 'success') {
+        let c = document.getElementById('toastContainer');
+        let t = document.createElement('div');
+        t.className = `toast toast-${type}`;
+        t.textContent = msg;
+        c.appendChild(t);
+        setTimeout(() => t.remove(), 3000);
+    }
+    
+    function showSection(id) {
+        document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
+        document.getElementById(id).classList.remove('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        closeSidebar();
+    }
+    
+    function isLoggedIn() { return !!currentUser; }
+    function isAdmin() { return currentUser && cachedAdmins.includes(currentUser.email); }
+    
+    function updateUI() {
+        let l = isLoggedIn(), a = isAdmin();
+        document.getElementById('btnLogin').classList.toggle('hidden', l);
+        document.getElementById('btnRegister').classList.toggle('hidden', l);
+        document.getElementById('btnLogout').classList.toggle('hidden', !l);
+        document.getElementById('adminLink').classList.toggle('hidden', !a);
+        document.getElementById('adminLinkSidebar').classList.toggle('hidden', !a);
+        let b = document.getElementById('userBadge');
+        if (l) {
+            b.classList.remove('hidden');
+            b.textContent = `👤 ${currentUser.name || currentUser.email}`;
+        } else b.classList.add('hidden');
+    }
+    
+    // ==================== TRANSLATION (Google Translate API) ====================
+    async function translateText(text, targetLang) {
+        if (!GOOGLE_TRANSLATE_API_KEY || GOOGLE_TRANSLATE_API_KEY === "VOTRE_CLE_API_ICI") {
+            console.warn("API Key manquante - traduction basique uniquement");
+            return text;
+        }
+        try {
+            const url = `https://translation.googleapis.com/language/translate/v2?key=${GOOGLE_TRANSLATE_API_KEY}`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ q: text, target: targetLang, format: 'text' })
+            });
+            const data = await response.json();
+            return data.data.translations[0].translatedText;
+        } catch (error) {
+            console.error("Erreur traduction:", error);
+            return text;
+        }
+    }
+    
+    async function translatePageElements() {
+        const staticTranslations = {
+            fr: { heroTitle: "Bienvenue sur Nouvel horizon d'emploi", heroDesc: "Plateforme dédiée à l'insertion professionnelle des réfugiés.", heroCreateBtn: "Créer un compte", heroJobsBtn: "Voir les offres", disclaimer: "⚠️ Nous ne soutenons pas l'immigration illégale" },
+            en: { heroTitle: "Welcome to New Employment Horizon", heroDesc: "Platform for refugee professional integration.", heroCreateBtn: "Create Account", heroJobsBtn: "View Jobs", disclaimer: "⚠️ We do not support illegal immigration" },
+            ar: { heroTitle: "مرحباً في أفق التوظيف الجديد", heroDesc: "منصة لإدماج اللاجئين مهنياً.", heroCreateBtn: "إنشاء حساب", heroJobsBtn: "عرض الوظائف", disclaimer: "⚠️ نحن لا ندعم الهجرة غير الشرعية" }
+        };
+        let t = staticTranslations[currentLang];
+        if (t) {
+            document.getElementById('heroTitle').innerText = t.heroTitle;
+            document.getElementById('heroDesc').innerText = t.heroDesc;
+            document.getElementById('heroCreateBtn').innerText = t.heroCreateBtn;
+            document.getElementById('heroJobsBtn').innerText = t.heroJobsBtn;
+            document.getElementById('disclaimerText').innerText = t.disclaimer;
+        }
+        document.body.classList.toggle('rtl', currentLang === 'ar');
+    }
+    
+    // ==================== AUTH ====================
+    async function registerEmail(n, e, p, p2) {
+        if (p !== p2) return toast('❌ Mots de passe différents', 'error');
+        try {
+            const cred = await auth.createUserWithEmailAndPassword(e, p);
+            currentUser = { id: cred.user.uid, name: n, email: e };
+            await db.collection('users').doc(cred.user.uid).set(currentUser);
+            updateUI();
+            toast('✅ Compte créé !');
+            showSection('profile');
+        } catch (err) { toast('❌ ' + err.message, 'error'); }
+    }
+    
+    async function showLogin() {
+        let e = prompt('📧 Email:'); if (!e) return;
+        let p = prompt('🔑 Mot de passe:'); if (!p) return;
+        try {
+            const cred = await auth.signInWithEmailAndPassword(e, p);
+            const doc = await db.collection('users').doc(cred.user.uid).get();
+            currentUser = doc.exists ? doc.data() : { id: cred.user.uid, name: e, email: e };
+            updateUI();
+            toast('✅ Connecté !');
+            showSection('jobs');
+        } catch (err) { toast('❌ Identifiants incorrects', 'error'); }
+    }
+    
+    async function logout() {
+        await auth.signOut();
+        currentUser = null;
+        updateUI();
+        toast('👋 Déconnecté');
+        showSection('home');
+    }
+    
+    async function saveProfile(status, city, legal) {
+        if (!currentUser) return;
+        currentUser.status = status;
+        currentUser.city = city;
+        currentUser.legalStatus = legal;
+        currentUser.profileComplete = true;
+        await db.collection('users').doc(currentUser.id).set(currentUser, { merge: true });
+        updateUI();
+        toast('✅ Profil enregistré');
+        showSection('jobs');
+    }
+    
+    // ==================== JOBS ====================
+    async function renderJobs() {
+        let filtered = [...cachedJobs];
+        let search = document.getElementById('jobSearch')?.value.toLowerCase() || '';
+        if (search) filtered = filtered.filter(j => j.title.toLowerCase().includes(search));
+        let container = document.getElementById('jobsList');
+        if (!filtered.length) { container.innerHTML = '<p class="loading">Aucune offre</p>'; return; }
+        container.innerHTML = filtered.map(job => `
+            <div class="job-card">
+                <h4>${job.title}</h4>
+                <span class="badge badge-blue">📍 ${job.city}</span>
+                <span class="badge badge-green">📄 ${job.contract || 'CDI'}</span>
+                <p style="margin:8px 0;">${job.desc || ''}</p>
+                <button class="btn btn-primary btn-sm" onclick="applyJob(${job.id})">Postuler</button>
+            </div>
+        `).join('');
+    }
+    
+    function applyJob(id) {
+        if (!isLoggedIn()) return toast('Connectez-vous d\'abord', 'warning');
+        toast('✅ Candidature envoyée');
+    }
+    
+    // ==================== VOLUNTEERING ====================
+    function renderVolunteering() {
+        const d = [
+            { org: 'Restos du Cœur', city: 'Paris', task: 'Distribution alimentaire' },
+            { org: 'La Cimade', city: 'Lyon', task: 'Accompagnement juridique' },
+            { org: 'Secours Populaire', city: 'Marseille', task: 'Aide aux réfugiés' }
+        ];
+        document.getElementById('volList').innerHTML = d.map(v => `
+            <div class="job-card" style="border-left-color:var(--s)">
+                <h4>${v.org}</h4>
+                <span class="badge badge-blue">📍 ${v.city}</span>
+                <p style="margin:8px 0;">${v.task}</p>
+                <button class="btn btn-outline btn-sm" onclick="volSign('${v.org}')">Devenir bénévole</button>
+            </div>
+        `).join('');
+    }
+    
+    function volSign(org) {
+        if (!isLoggedIn()) return toast('Connectez-vous', 'warning');
+        toast(`✅ Inscription bénévole : ${org}`);
+    }
+    
+    // ==================== UPLOAD FILES (2GB SUPPORT) ====================
+    async function uploadFileToStorage(folder, file, maxSizeMB = 2048) {
+        if (file.size > maxSizeMB * 1024 * 1024) {
+            toast(`❌ Fichier trop volumineux (max ${maxSizeMB} MB)`, 'error');
+            return null;
+        }
+        const ref = storage.ref(`${folder}/${Date.now()}_${file.name}`);
+        await ref.put(file);
+        return await ref.getDownloadURL();
+    }
+    
+    async function triggerVideoUpload() {
+        if (!isAdmin()) return toast('Accès réservé', 'warning');
+        let input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'video/*';
+        input.onchange = async e => {
+            let file = e.target.files[0];
+            if (!file) return;
+            toast('⏳ Upload en cours...', 'warning');
+            let url = await uploadFileToStorage('videos', file, 2048);
+            if (!url) return;
+            let title = prompt('🎬 Titre de la vidéo:', file.name) || 'Vidéo';
+            let video = { id: Date.now(), title, dataUrl: url, fileType: file.type, cat: 'Emploi' };
+            await db.collection('videos').doc(String(video.id)).set(video);
+            cachedVideos.push(video);
+            renderVideos();
+            renderAdmin('videos-manage');
+            toast('✅ Vidéo ajoutée');
+        };
+        input.click();
+    }
+    
+    async function triggerPosterUpload() {
+        if (!isAdmin()) return toast('Accès réservé', 'warning');
+        let input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = async e => {
+            let file = e.target.files[0];
+            if (!file) return;
+            toast('⏳ Upload...', 'warning');
+            let url = await uploadFileToStorage('posters', file, 2048);
+            if (!url) return;
+            let title = prompt('🖼️ Titre de l\'affiche:', file.name) || 'Affiche';
+            let poster = { id: Date.now(), title, dataUrl: url };
+            await db.collection('posters').doc(String(poster.id)).set(poster);
+            cachedPosters.push(poster);
+            renderPosters();
+            renderAdmin('posters-manage');
+            toast('✅ Affiche ajoutée');
+        };
+        input.click();
+    }
+    
+    async function renderVideos() {
+        let c = document.getElementById('videosList');
+        if (!cachedVideos.length) { c.innerHTML = '<p class="loading">Aucune vidéo</p>'; return; }
+        c.innerHTML = cachedVideos.map(v => `
+            <div class="card">
+                <video src="${v.dataUrl}" controls style="width:100%;height:180px;object-fit:cover;border-radius:8px;"></video>
+                <h4>${v.title}</h4>
+            </div>
+        `).join('');
+    }
+    
+    async function renderPosters() {
+        let c = document.getElementById('postersList');
+        if (!cachedPosters.length) { c.innerHTML = '<p class="loading">Aucune affiche</p>'; return; }
+        c.innerHTML = cachedPosters.map(p => `
+            <div class="card">
+                <img src="${p.dataUrl}" style="width:100%;height:150px;object-fit:cover;border-radius:8px;">
+                <h4>${p.title}</h4>
+            </div>
+        `).join('');
+    }
+    
+    // ==================== ARTICLES (WITH IMAGES) ====================
+    async function uploadArticleImage() {
+        if (!isLoggedIn()) return toast('Connectez-vous', 'warning');
+        let input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = async e => {
+            let file = e.target.files[0];
+            if (!file) return;
+            toast('Upload image...', 'warning');
+            let url = await uploadFileToStorage('article_images', file, 2048);
+            if (!url) return;
+            let textarea = document.getElementById('articleContent');
+            textarea.value += `\n![image](${url})\n`;
+            toast('✅ Image ajoutée');
+        };
+        input.click();
+    }
+    
+    function wrapText(before, after) {
+        let ta = document.getElementById('articleContent');
+        let start = ta.selectionStart, end = ta.selectionEnd, text = ta.value;
+        let selected = text.substring(start, end);
+        ta.value = text.substring(0, start) + before + selected + after + text.substring(end);
+        ta.focus();
+    }
+    
+    function simpleMarkdown(text) {
+        return text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+                   .replace(/\*(.*?)\*/g, '<i>$1</i>')
+                   .replace(/## (.*?)(\n|$)/g, '<h4>$1</h4>')
+                   .replace(/> (.*?)(\n|$)/g, '<blockquote style="border-left:3px solid #ccc;padding-left:10px;margin:5px 0;">$1</blockquote>')
+                   .replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" style="max-width:100%;border-radius:8px;margin:10px 0;">')
+                   .replace(/\n/g, '<br>');
+    }
+    
+    async function publishArticle() {
+        if (!isLoggedIn()) return toast('Connectez-vous', 'warning');
+        let title = document.getElementById('articleTitle').value.trim();
+        let content = document.getElementById('articleContent').value.trim();
+        if (!title || !content) return toast('Titre et contenu requis', 'error');
+        let article = {
+            id: Date.now(),
+            title, content,
+            author: currentUser.email,
+            authorName: currentUser.name || currentUser.email,
+            date: new Date().toISOString()
+        };
+        await db.collection('articles').doc(String(article.id)).set(article);
+        cachedArticles.unshift(article);
+        renderArticles();
+        renderHomeArticles();
+        toggleArticleForm();
+        toast('✅ Article publié');
+    }
+    
+    async function renderArticles() {
+        let container = document.getElementById('articlesList');
+        if (!cachedArticles.length) {
+            container.innerHTML = '<p class="loading">Aucun article. Écrivez le premier !</p>';
+            return;
+        }
+        container.innerHTML = cachedArticles.map(a => `
+            <div class="job-card" style="border-left-color:var(--a);">
+                <h3>📄 ${a.title}</h3>
+                <small>✍️ ${a.authorName} - ${new Date(a.date).toLocaleDateString()}</small>
+                <div style="margin-top:8px;">${simpleMarkdown(a.content.substring(0, 200))}${a.content.length > 200 ? '...' : ''}</div>
+                <button class="btn btn-outline btn-sm" onclick="viewFullArticle('${a.id}')">Lire plus</button>
+                ${(isAdmin() || currentUser?.email === a.author) ? `<button class="btn btn-danger btn-sm" onclick="deleteArticle('${a.id}')" style="margin-left:5px;">🗑️</button>` : ''}
+            </div>
+        `).join('');
+    }
+    
+    function renderHomeArticles() {
+        let container = document.getElementById('homeArticlesList');
+        if (!cachedArticles.length) {
+            container.innerHTML = '<p class="loading">Aucun article récent</p>';
+            return;
+        }
+        container.innerHTML = cachedArticles.slice(0, 3).map(a => `
+            <div class="job-card">
+                <h4>📄 ${a.title}</h4>
+                <small>${a.authorName}</small>
+                <p>${simpleMarkdown(a.content.substring(0, 100))}...</p>
+            </div>
+        `).join('');
+    }
+    
+    function viewFullArticle(id) {
+        let article = cachedArticles.find(a => a.id == id);
+        let win = window.open();
+        win.document.write(`
+            <html><head><title>${article.title}</title>
+            <style>body{font-family:sans-serif;padding:2rem;max-width:800px;margin:auto;line-height:1.6}</style>
+            </head><body>
+            <h1>${article.title}</h1>
+            <p><strong>${article.authorName}</strong> - ${new Date(article.date).toLocaleString()}</p>
+            <hr/>
+            <div>${simpleMarkdown(article.content)}</div>
+            <br/><a href="#" onclick="window.close()">Fermer</a>
+            </body></html>
+        `);
+    }
+    
+    async function deleteArticle(id) {
+        if (!confirm('Supprimer cet article ?')) return;
+        await db.collection('articles').doc(String(id)).delete();
+        cachedArticles = cachedArticles.filter(a => a.id != id);
+        renderArticles();
+        renderHomeArticles();
+        if (document.getElementById('adminContent')) renderAdmin('articles-manage');
+        toast('✅ Article supprimé');
+    }
+    
+    function toggleArticleForm() {
+        let form = document.getElementById('articleForm');
+        form.classList.toggle('hidden');
+        if (!form.classList.contains('hidden')) {
+            document.getElementById('articleTitle').value = '';
+            document.getElementById('articleContent').value = '';
+        }
+    }
+    
+    // ==================== ADMIN ====================
+    async function renderAdmin(tab) {
+        let c = document.getElementById('adminContent');
+        if (tab === 'dashboard') {
+            let users = await db.collection('users').get();
+            c.innerHTML = `<div class="stat-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;">
+                <div class="card"><h3>Utilisateurs</h3><p style="font-size:2rem;">${users.size}</p></div>
+                <div class="card"><h3>Articles</h3><p style="font-size:2rem;">${cachedArticles.length}</p></div>
+                <div class="card"><h3>Offres</h3><p style="font-size:2rem;">${cachedJobs.length}</p></div>
+                <div class="card"><h3>Vidéos</h3><p style="font-size:2rem;">${cachedVideos.length}</p></div>
+                <div class="card"><h3>Affiches</h3><p style="font-size:2rem;">${cachedPosters.length}</p></div>
+            </div>`;
+        } else if (tab === 'users') {
+            let snap = await db.collection('users').get();
+            c.innerHTML = `<table border="1" style="width:100%;border-collapse:collapse;"><tr><th>Nom</th><th>Email</th><th>Action</th></tr>${snap.docs.map(d => `<tr><td>${d.data().name || '-'}</td><td>${d.data().email}</td><td><button class="btn btn-danger btn-sm" onclick="delU('${d.id}')">🗑️</button></td></tr>`).join('')}对这些`;
+        } else if (tab === 'jobs-manage') {
+            c.innerHTML = `<button class="btn btn-primary btn-sm" onclick="addJob()">+ Offre</button><br><br>${cachedJobs.map(j => `<div style="padding:8px;border-bottom:1px solid #eee;"><b>${j.title}</b> (${j.city}) <button class="btn btn-danger btn-sm" onclick="deleteJob(${j.id})">🗑️</button></div>`).join('')}`;
+        } else if (tab === 'videos-manage') {
+            c.innerHTML = `<button class="btn btn-primary btn-sm" onclick="triggerVideoUpload()">+ Vidéo (2GB max)</button><br><br>${cachedVideos.map(v => `<div><b>${v.title}</b> <button class="btn btn-danger btn-sm" onclick="deleteVideo('${v.id}')">🗑️</button></div>`).join('')}`;
+        } else if (tab === 'posters-manage') {
+            c.innerHTML = `<button class="btn btn-primary btn-sm" onclick="triggerPosterUpload()">+ Affiche (2GB max)</button><br><br>${cachedPosters.map(p => `<div><b>${p.title}</b> <button class="btn btn-danger btn-sm" onclick="deletePoster('${p.id}')">🗑️</button></div>`).join('')}`;
+        } else if (tab === 'articles-manage') {
+            c.innerHTML = `<button class="btn btn-primary btn-sm" onclick="addFakeArticle()">+ Article test</button><br><br>${cachedArticles.map(a => `<div><b>${a.title}</b> - ${a.author} <button class="btn btn-danger btn-sm" onclick="deleteArticle('${a.id}')">🗑️</button></div>`).join('')}`;
+        } else if (tab === 'admins') {
+            c.innerHTML = `<button class="btn btn-primary btn-sm" onclick="addAdmin()">+ Admin</button><br><br>${cachedAdmins.map(a => `<div>${a} <button class="btn btn-danger btn-sm" onclick="removeAdmin('${a}')">🗑️</button></div>`).join('')}`;
+        } else if (tab === 'settings') {
+            let doc = await db.collection('settings').doc('logo').get();
+            let logoUrl = doc.exists ? doc.data().url : '';
+            c.innerHTML = `<h3>Logo actuel</h3><img src="${logoUrl || ''}" style="width:100px;height:100px;object-fit:contain;border-radius:12px;"><br><br><button class="btn btn-primary" onclick="uploadLogo()">Changer le logo</button>`;
+        }
+    }
+    
+    async function addJob() {
+        let title = prompt('Titre du poste:'); if (!title) return;
+        let city = prompt('Ville:'); if (!city) return;
+        let contract = prompt('Type de contrat (CDI/CDD/Intérim):') || 'CDI';
+        let desc = prompt('Description:') || '';
+        let job = { id: Date.now(), title, city: city.toLowerCase(), contract, desc, date: new Date().toISOString().split('T')[0] };
+        await db.collection('jobs').doc(String(job.id)).set(job);
+        cachedJobs.push(job);
+        renderJobs();
+        renderAdmin('jobs-manage');
+        toast('✅ Offre ajoutée');
+    }
+    
+    async function deleteJob(id) {
+        await db.collection('jobs').doc(String(id)).delete();
+        cachedJobs = cachedJobs.filter(j => j.id != id);
+        renderJobs();
+        renderAdmin('jobs-manage');
+        toast('Offre supprimée');
+    }
+    
+    async function deleteVideo(id) {
+        await db.collection('videos').doc(String(id)).delete();
+        cachedVideos = cachedVideos.filter(v => v.id != id);
+        renderVideos();
+        renderAdmin('videos-manage');
+        toast('Vidéo supprimée');
+    }
+    
+    async function deletePoster(id) {
+        await db.collection('posters').doc(String(id)).delete();
+        cachedPosters = cachedPosters.filter(p => p.id != id);
+        renderPosters();
+        renderAdmin('posters-manage');
+        toast('Affiche supprimée');
+    }
+    
+    async function delU(id) {
+        if (!confirm('Supprimer cet utilisateur ?')) return;
+        await db.collection('users').doc(id).delete();
+        renderAdmin('users');
+        toast('Utilisateur supprimé');
+    }
+    
+    async function addAdmin() {
+        let email = prompt('Email du nouvel admin:');
+        if (!email || cachedAdmins.includes(email)) return toast('Admin existe déjà', 'warning');
+        await db.collection('admins').doc(email).set({ email });
+        cachedAdmins.push(email);
+        renderAdmin('admins');
+        toast('✅ Admin ajouté');
+    }
+    
+    async function removeAdmin(email) {
+        if (email === 'mosab649@gmail.com') return toast('Admin principal protégé', 'warning');
+        await db.collection('admins').doc(email).delete();
+        cachedAdmins = cachedAdmins.filter(e => e !== email);
+        renderAdmin('admins');
+        toast('Admin supprimé');
+    }
+    
+    async function addFakeArticle() {
+        let fake = {
+            id: Date.now(),
+            title: 'Article de démonstration',
+            content: 'Ceci est un **article** test avec du *markdown*. Vous pouvez écrire vos propres articles et ajouter des images !',
+            author: 'admin@test.com',
+            authorName: 'Admin Test',
+            date: new Date().toISOString()
+        };
+        await db.collection('articles').doc(String(fake.id)).set(fake);
+        cachedArticles.unshift(fake);
+        renderArticles();
+        renderHomeArticles();
+        if (document.getElementById('adminContent')) renderAdmin('articles-manage');
+        toast('✅ Article test ajouté');
+    }
+    
+    async function uploadLogo() {
+        if (!isAdmin()) return;
+        let input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = async e => {
+            let file = e.target.files[0];
+            let ref = storage.ref('logo/main');
+            await ref.put(file);
+            let url = await ref.getDownloadURL();
+            await db.collection('settings').doc('logo').set({ url });
+            updateLogoDisplay();
+            toast('Logo mis à jour');
+            renderAdmin('settings');
+        };
+        input.click();
+    }
+    
+    async function updateLogoDisplay() {
+        let doc = await db.collection('settings').doc('logo').get();
+        let url = doc.exists ? doc.data().url : '';
+        ['navLogo', 'sidebarLogo', 'footerLogo'].forEach(id => {
+            let el = document.getElementById(id);
+            if (el) {
+                if (url) { el.src = url; el.style.display = 'inline-block'; }
+                else el.style.display = 'none';
+            }
+        });
+    }
+    
+    // ==================== SIDEBAR ====================
+    function openSidebar() {
+        document.getElementById('sidebar').classList.add('open');
+        document.getElementById('overlay').classList.add('active');
+    }
+    
+    function closeSidebar() {
+        document.getElementById('sidebar').classList.remove('open');
+        document.getElementById('overlay').classList.remove('active');
+    }
+    
+    // ==================== RENDER ALL ====================
+    function renderAll() {
+        renderJobs();
+        renderVideos();
+        renderPosters();
+        renderVolunteering();
+        renderArticles();
+        renderHomeArticles();
+    }
+    
+    // ==================== INIT ====================
+    async function init() {
+        // Load jobs
+        let jobsSnap = await db.collection('jobs').get();
+        cachedJobs = jobsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        if (cachedJobs.length === 0) {
+            let defaultJobs = [
+                { id: 1, title: 'Aide Cuisinier', city: 'paris', contract: 'CDI', desc: 'Restaurant recherche aide cuisine.', date: '2024-01-01' },
+                { id: 2, title: 'Agent d\'entretien', city: 'lyon', contract: 'CDD', desc: 'Nettoyage bureaux.', date: '2024-01-02' },
+                { id: 3, title: 'Manutentionnaire', city: 'marseille', contract: 'Intérim', desc: 'Entrepôt logistique.', date: '2024-01-03' }
+            ];
+            for (let j of defaultJobs) await db.collection('jobs').doc(String(j.id)).set(j);
+            cachedJobs = defaultJobs;
+        }
+        
+        // Load videos
+        let videosSnap = await db.collection('videos').get();
+        cachedVideos = videosSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        
+        // Load posters
+        let postersSnap = await db.collection('posters').get();
+        cachedPosters = postersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        
+        // Load articles
+        let articlesSnap = await db.collection('articles').orderBy('date', 'desc').get();
+        cachedArticles = articlesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        
+        // Load admins
+        let adminsSnap = await db.collection('admins').get();
+        cachedAdmins = adminsSnap.docs.map(d => d.id);
+        if (!cachedAdmins.includes('mosab649@gmail.com')) {
+            await db.collection('admins').doc('mosab649@gmail.com').set({ email: 'mosab649@gmail.com' });
+            cachedAdmins.push('mosab649@gmail.com');
+        }
+        
+        // Auth state
+        auth.onAuthStateChanged(async user => {
+            if (user) {
+                let doc = await db.collection('users').doc(user.uid).get();
+                currentUser = doc.exists ? doc.data() : { id: user.uid, name: user.email, email: user.email };
+            } else {
+                currentUser = null;
+            }
+            updateUI();
+            renderArticles();
+            renderHomeArticles();
+        });
+        
+        await updateLogoDisplay();
+        renderAll();
+        
+        // Event listeners
+        document.getElementById('langSwitch').addEventListener('change', (e) => { currentLang = e.target.value; translatePageElements(); });
+        document.getElementById('menuToggle').addEventListener('click', openSidebar);
+        document.getElementById('overlay').addEventListener('click', closeSidebar);
+        document.getElementById('btnLogin').addEventListener('click', showLogin);
+        document.getElementById('btnRegister').addEventListener('click', () => showSection('register'));
+        document.getElementById('btnLogout').addEventListener('click', logout);
+        
+        document.getElementById('formRegister').addEventListener('submit', (e) => {
+            e.preventDefault();
+            registerEmail(
+                document.getElementById('regName').value,
+                document.getElementById('regEmail').value,
+                document.getElementById('regPass').value,
+                document.getElementById('regPass2').value
+            );
+        });
+        
+        document.getElementById('formProfile').addEventListener('submit', (e) => {
+            e.preventDefault();
+            saveProfile(
+                document.getElementById('profStatus').value,
+                document.getElementById('profCity').value,
+                document.getElementById('profLegal').value
+            );
+        });
+        
+        document.getElementById('jobSearch').addEventListener('input', renderJobs);
+        document.getElementById('uploadImageBtn').addEventListener('click', uploadArticleImage);
+        
+        // Navigation links
+        document.querySelectorAll('.sidebar-nav a, .nav-links a').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                let href = link.getAttribute('href');
+                if (href && href.startsWith('#')) {
+                    let id = href.substring(1);
+                    if (id === 'admin' && !isAdmin()) return toast('Accès réservé', 'warning');
+                    showSection(id);
+                    if (id === 'admin') renderAdmin('dashboard');
+                    if (id === 'forum-articles') renderArticles();
+                }
+            });
+        });
+        
+        // Admin tabs
+        document.querySelectorAll('.admin-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                renderAdmin(tab.getAttribute('data-tab'));
+            });
+        });
+        
+        translatePageElements();
+        console.log('✅ Application complète et prête - Upload 2GB, Images dans articles, Traduction API Ready');
+        console.log('👤 Admin par défaut: mosab649@gmail.com');
+    }
+    
+    document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

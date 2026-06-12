@@ -2,15 +2,20 @@
 <html lang="fr" dir="ltr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nouvel horizon d'emploi - Opportunités pour Réfugiés</title>
+    <meta name="description" content="Plateforme de formation et d'emploi pour réfugiés et migrants en France.">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     
     <!-- FIREBASE SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+    
+    <!-- Quill.js for Rich Text Editor -->
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
     
     <style>
         :root {
@@ -28,6 +33,8 @@
             --sh: 0 2px 10px rgba(0, 0, 0, .08);
             --shl: 0 8px 30px rgba(0, 0, 0, .12);
             --r: 12px;
+            --rr: 28px;
+            --t: .25s ease;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         html { scroll-behavior: smooth; font-size: 16px; }
@@ -40,46 +47,184 @@
             flex-direction: column;
             line-height: 1.6;
         }
-        body.rtl { direction: rtl; text-align: right; }
+        body.rtl { direction: rtl; }
         
         /* Sidebar */
         .sidebar {
-            position: fixed; top: 0; left: -280px; width: 280px; height: 100%;
-            background: var(--wht); box-shadow: 2px 0 10px rgba(0,0,0,0.15);
-            z-index: 2000; transition: left 0.3s ease; display: flex; flex-direction: column;
+            position: fixed;
+            top: 0;
+            left: -300px;
+            width: 280px;
+            height: 100%;
+            background: var(--wht);
+            box-shadow: 2px 0 10px rgba(0,0,0,0.15);
+            z-index: 2000;
+            transition: left 0.3s ease;
+            display: flex;
+            flex-direction: column;
         }
-        body.rtl .sidebar { left: auto; right: -280px; }
-        .sidebar.open { left: 0; }
-        body.rtl .sidebar.open { left: auto; right: 0; }
-        .sidebar-header { padding: 1.5rem; background: var(--p); color: white; text-align: center; }
-        .sidebar-header img { width: 70px; height: 70px; object-fit: contain; border-radius: 50%; background: white; padding: 5px; margin-bottom: 10px; }
-        .sidebar-nav { flex: 1; padding: 1rem 0; }
-        .sidebar-nav a { display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: var(--tx); text-decoration: none; transition: 0.2s; font-weight: 500; }
-        .sidebar-nav a i { width: 24px; color: var(--p); }
-        .sidebar-nav a:hover { background: #e3f2fd; }
-        .overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1999; display: none; }
-        .overlay.active { display: block; }
-        .menu-toggle { background: none; border: none; font-size: 1.3rem; cursor: pointer; color: var(--p); padding: 0.5rem; margin-right: 0.5rem; }
-        body.rtl .menu-toggle { margin-right: 0; margin-left: 0.5rem; }
+        body.rtl .sidebar {
+            left: auto;
+            right: -300px;
+        }
+        .sidebar.open {
+            left: 0;
+        }
+        body.rtl .sidebar.open {
+            left: auto;
+            right: 0;
+        }
+        .sidebar-header {
+            padding: 1.5rem;
+            background: var(--p);
+            color: white;
+            text-align: center;
+        }
+        .sidebar-header img {
+            width: 70px;
+            height: 70px;
+            object-fit: contain;
+            border-radius: 50%;
+            background: white;
+            padding: 5px;
+            margin-bottom: 10px;
+        }
+        .sidebar-nav {
+            flex: 1;
+            padding: 1rem 0;
+        }
+        .sidebar-nav a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px;
+            color: var(--tx);
+            text-decoration: none;
+            transition: 0.2s;
+            font-weight: 500;
+        }
+        .sidebar-nav a i {
+            width: 24px;
+            color: var(--p);
+        }
+        .sidebar-nav a:hover {
+            background: #e3f2fd;
+        }
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1999;
+            display: none;
+        }
+        .overlay.active {
+            display: block;
+        }
+        .menu-toggle {
+            background: none;
+            border: none;
+            font-size: 1.3rem;
+            cursor: pointer;
+            color: var(--p);
+            padding: 0.5rem;
+            margin-right: 0.5rem;
+        }
+        body.rtl .menu-toggle {
+            margin-right: 0;
+            margin-left: 0.5rem;
+        }
         
-        /* Navbar */
-        .disclaimer-bar { background: #fff3e0; padding: .4rem 1rem; text-align: center; font-size: .7rem; border-bottom: 2px solid var(--w); position: sticky; top: 0; z-index: 102; color: #e65100; font-weight: 600; }
-        .navbar { background: var(--wht); box-shadow: var(--sh); position: sticky; top: 30px; z-index: 101; }
-        .nav-inner { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem; display: flex; align-items: center; justify-content: space-between; height: 56px; }
-        .nav-brand { display: flex; align-items: center; gap: .5rem; font-size: 1.1rem; font-weight: 700; color: var(--p); text-decoration: none; }
-        .nav-logo { width: 36px; height: 36px; object-fit: contain; border-radius: 6px; background: white; padding: 2px; border: 1px solid var(--bdr); }
+        .disclaimer-bar {
+            background: #fff3e0;
+            padding: .4rem 1rem;
+            text-align: center;
+            font-size: .7rem;
+            border-bottom: 2px solid var(--w);
+            position: sticky;
+            top: 0;
+            z-index: 102;
+            color: #e65100;
+            font-weight: 600;
+        }
+        .navbar {
+            background: var(--wht);
+            box-shadow: var(--sh);
+            position: sticky;
+            top: 30px;
+            z-index: 101;
+        }
+        .nav-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 56px;
+        }
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--p);
+            text-decoration: none;
+        }
+        .nav-brand i { font-size: 1.4rem; color: var(--a); }
+        .nav-logo {
+            width: 36px;
+            height: 36px;
+            object-fit: contain;
+            border-radius: 6px;
+            background: white;
+            padding: 2px;
+            border: 1px solid var(--bdr);
+        }
+        .nav-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--p);
+        }
         .nav-menu { display: flex; align-items: center; gap: .75rem; }
         .nav-links { display: flex; list-style: none; gap: .2rem; }
-        .nav-links a { padding: .4rem .7rem; border-radius: 20px; color: var(--tx); text-decoration: none; font-weight: 500; font-size: .8rem; cursor: pointer; }
+        .nav-links a {
+            padding: .4rem .7rem;
+            border-radius: 20px;
+            color: var(--tx);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: .8rem;
+            cursor: pointer;
+        }
         .nav-links a:hover, .nav-links a.active { background: #e3f2fd; color: var(--p); }
-        .nav-actions { display: flex; gap: .4rem; align-items: center; flex-wrap: wrap; }
-        
-        /* Buttons */
-        .btn { padding: .5rem 1rem; border-radius: 20px; font-weight: 600; font-size: .8rem; cursor: pointer; border: 2px solid transparent; display: inline-flex; align-items: center; gap: .4rem; text-decoration: none; transition: .2s; }
+        .nav-actions { display: flex; gap: .4rem; align-items: center; }
+        .btn {
+            padding: .5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: .8rem;
+            cursor: pointer;
+            border: 2px solid transparent;
+            display: inline-flex;
+            align-items: center;
+            gap: .4rem;
+            text-decoration: none;
+            transition: .2s;
+        }
         .btn-primary { background: var(--p); color: #fff; }
         .btn-primary:hover { background: var(--pd); }
         .btn-outline { background: transparent; border-color: var(--p); color: var(--p); }
         .btn-outline:hover { background: var(--p); color: #fff; }
+        .btn-google { background: #ea4335; color: #fff; }
+        .btn-facebook { background: #1877f2; color: #fff; }
+        .btn-phone { background: var(--s); color: #fff; }
         .btn-danger { background: var(--d); color: #fff; }
         .btn-sm { padding: .35rem .7rem; font-size: .75rem; }
         .btn-block { width: 100%; justify-content: center; }
@@ -89,238 +234,1543 @@
         .hidden { display: none !important; }
         .hero { text-align: center; padding: 2rem 0; }
         .hero h1 { font-size: 2rem; }
+        .hero p { color: var(--t2); max-width: 500px; margin: .5rem auto 1rem; font-size: .9rem; }
+        .hero-btns { display: flex; gap: .75rem; justify-content: center; flex-wrap: wrap; }
         .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
         .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
         .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
-        .card { background: var(--wht); padding: 1.2rem; border-radius: var(--r); box-shadow: var(--sh); border: 1px solid var(--bdr); text-decoration: none; color: var(--tx); display: block; text-align: center; transition: .2s; }
+        .card {
+            background: var(--wht);
+            padding: 1.2rem;
+            border-radius: var(--r);
+            box-shadow: var(--sh);
+            border: 1px solid var(--bdr);
+            text-decoration: none;
+            color: var(--tx);
+            display: block;
+            text-align: center;
+            transition: .2s;
+        }
         .card:hover { box-shadow: var(--shl); transform: translateY(-2px); }
-        .job-card { background: var(--wht); padding: 1rem; border-radius: var(--r); box-shadow: var(--sh); border-left: 4px solid var(--p); margin-bottom: 1rem; }
-        .badge { display: inline-block; padding: .15rem .5rem; border-radius: 15px; font-size: .65rem; font-weight: 600; margin: .1rem; }
+        .card i { font-size: 2rem; color: var(--a); margin-bottom: .5rem; }
+        .card h3 { color: var(--p); margin-bottom: .3rem; font-size: 1rem; }
+        .card p { font-size: .8rem; color: var(--t2); }
+        .social-btns { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; max-width: 400px; margin: 0 auto; }
+        .social-btns .btn { padding: .7rem; justify-content: center; }
+        .divider { text-align: center; margin: 1rem auto; color: var(--t2); font-size: .85rem; max-width: 400px; }
+        .form-box { max-width: 400px; margin: 0 auto; display: flex; flex-direction: column; gap: .75rem; }
+        .form-input, .form-select {
+            padding: .6rem .8rem;
+            border: 2px solid var(--bdr);
+            border-radius: 8px;
+            font-size: .85rem;
+            font-family: inherit;
+            background: var(--wht);
+        }
+        .form-input:focus, .form-select:focus { border-color: var(--p); outline: none; }
+        .filters { display: flex; gap: .5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .filters input { flex: 1; min-width: 150px; }
+        .filters input, .filters select {
+            padding: .5rem .8rem;
+            border: 2px solid var(--bdr);
+            border-radius: 20px;
+            font-size: .8rem;
+            font-family: inherit;
+        }
+        .job-card {
+            background: var(--wht);
+            padding: 1rem;
+            border-radius: var(--r);
+            box-shadow: var(--sh);
+            border-left: 4px solid var(--p);
+        }
+        .job-card h4 { color: var(--p); margin-bottom: .3rem; font-size: .95rem; }
+        .badge {
+            display: inline-block;
+            padding: .15rem .5rem;
+            border-radius: 15px;
+            font-size: .65rem;
+            font-weight: 600;
+            margin: .1rem;
+        }
         .badge-blue { background: #e3f2fd; color: var(--p); }
         .badge-green { background: #e8f5e9; color: var(--s); }
-        .form-box { max-width: 400px; margin: 0 auto; display: flex; flex-direction: column; gap: .75rem; }
-        .form-input, .form-select, .form-textarea { padding: .6rem .8rem; border: 2px solid var(--bdr); border-radius: 8px; font-size: .85rem; font-family: inherit; background: var(--wht); }
-        .form-textarea { min-height: 150px; resize: vertical; }
-        
-        /* Editor */
-        .editor-toolbar { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; background: #f0f0f0; padding: 0.5rem; border-radius: 8px; }
-        .editor-toolbar button { background: white; border: 1px solid #ccc; border-radius: 4px; padding: 4px 10px; cursor: pointer; font-weight: bold; }
-        
         .admin-tabs { display: flex; gap: .25rem; flex-wrap: wrap; margin-bottom: 1rem; }
-        .admin-tab { padding: .4rem .8rem; border: none; background: #eee; cursor: pointer; border-radius: 20px; font-weight: 600; font-size: .75rem; }
+        .admin-tab {
+            padding: .4rem .8rem;
+            border: none;
+            background: #eee;
+            cursor: pointer;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: .75rem;
+        }
         .admin-tab.active { background: var(--p); color: #fff; }
         .admin-content { background: var(--wht); padding: 1rem; border-radius: var(--r); box-shadow: var(--sh); }
-        .footer { background: var(--p); color: #fff; padding: 1.5rem; margin-top: auto; text-align: center; font-size: .8rem; }
+        .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: .75rem; margin-bottom: 1rem; }
+        .stat-num { font-size: 2rem; font-weight: 700; color: var(--p); }
+        table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+        table th, table td { padding: .4rem .6rem; border-bottom: 1px solid var(--bdr); text-align: left; }
+        .rtl table th, .rtl table td { text-align: right; }
+        table th { background: #f5f5f5; font-weight: 600; }
+        .media-preview {
+            width: 100%;
+            height: 140px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: .5rem;
+            background: #f0f0f0;
+        }
+        .media-preview.video {
+            background: #1a1a2e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 2.5rem;
+        }
+        .footer {
+            background: var(--p);
+            color: #fff;
+            padding: 1.5rem 1rem;
+            margin-top: auto;
+            text-align: center;
+            font-size: .8rem;
+        }
+        .footer-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            max-width: 1000px;
+            margin: 0 auto 1rem;
+            text-align: left;
+        }
+        .rtl .footer-grid { text-align: right; }
+        .footer h4 { color: #90caf9; margin-bottom: .5rem; font-size: .9rem; }
+        .footer a { color: #bbb; text-decoration: none; display: block; font-size: .8rem; margin: .2rem 0; }
+        .footer-logo {
+            width: 100px;
+            height: 100px;
+            object-fit: contain;
+            margin-bottom: 0.5rem;
+            background: white;
+            border-radius: 8px;
+            padding: 4px;
+        }
         .toast-container { position: fixed; bottom: 1rem; right: 1rem; z-index: 9999; display: flex; flex-direction: column; gap: .4rem; }
-        .toast { padding: .6rem 1rem; border-radius: 8px; color: #fff; font-weight: 600; font-size: .8rem; box-shadow: var(--shl); animation: slideIn .3s ease; }
+        .toast {
+            padding: .6rem 1rem;
+            border-radius: 8px;
+            color: #fff;
+            font-weight: 600;
+            font-size: .8rem;
+            box-shadow: var(--shl);
+            animation: slideIn .3s ease;
+        }
         .toast-success { background: var(--s); }
         .toast-error { background: var(--d); }
         .toast-warning { background: var(--w); }
         @keyframes slideIn { from { transform: translateX(100px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         .loading { text-align: center; padding: 2rem; color: var(--t2); grid-column: 1/-1; }
-        .section-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; }
-        @media(max-width:768px) { .nav-links { display: none; } .hero h1 { font-size: 1.5rem; } }
+        .section-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+        .section-title h2 { margin-bottom: 0; text-align: left; }
+        .rtl .section-title h2 { text-align: right; }
+        .view-all { font-size: .8rem; color: var(--p); text-decoration: none; font-weight: 600; cursor: pointer; }
+        .view-all:hover { text-decoration: underline; }
+        
+        /* Quill Editor Styles */
+        .ql-container {
+            min-height: 200px;
+            font-size: 16px;
+        }
+        .ql-editor {
+            min-height: 200px;
+            background: white;
+        }
+        .article-content {
+            line-height: 1.6;
+        }
+        .article-content h1, .article-content h2, .article-content h3 {
+            color: var(--p);
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        .article-content p {
+            margin-bottom: 0.75rem;
+        }
+        .article-content img {
+            max-width: 100%;
+            border-radius: 8px;
+            margin: 0.5rem 0;
+        }
+        .article-content ul, .article-content ol {
+            margin-left: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+        .article-card {
+            background: var(--wht);
+            border-radius: var(--r);
+            padding: 1.2rem;
+            box-shadow: var(--sh);
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+        .article-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shl);
+        }
+        .article-card h3 {
+            color: var(--p);
+            margin-bottom: 0.5rem;
+        }
+        .article-card .article-meta {
+            color: var(--t2);
+            font-size: 0.75rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .article-card .article-excerpt {
+            color: var(--tx);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            margin-bottom: 0.75rem;
+        }
+        
+        /* Modal for full article */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 3000;
+            overflow-y: auto;
+        }
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: white;
+            max-width: 800px;
+            width: 90%;
+            margin: 2rem auto;
+            border-radius: var(--r);
+            padding: 2rem;
+            position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--t2);
+        }
+        .rtl .modal-close {
+            right: auto;
+            left: 1rem;
+        }
+        
+        @media(max-width:768px) {
+            .nav-toggle { display: block; }
+            .nav-menu { display: none; position: absolute; top: 56px; left: 0; right: 0; background: var(--wht); flex-direction: column; padding: 1rem; box-shadow: var(--sh); gap: .5rem; }
+            .nav-menu.open { display: flex; }
+            .nav-links { flex-direction: column; width: 100%; }
+            .nav-actions { flex-direction: column; width: 100%; }
+            .social-btns { grid-template-columns: 1fr; }
+            .hero h1 { font-size: 1.5rem; }
+        }
     </style>
 </head>
 <body>
 
-<!-- SIDEBAR -->
-<div class="sidebar" id="sidebar">
-    <div class="sidebar-header"><img id="sidebarLogo" src="" alt="Logo" style="display: none;"><h3>Nouvel horizon</h3></div>
-    <div class="sidebar-nav">
-        <a href="#home"><i class="fas fa-home"></i> Accueil</a>
-        <a href="#register"><i class="fas fa-user-plus"></i> Inscription</a>
-        <a href="#jobs"><i class="fas fa-briefcase"></i> Emplois</a>
-        <a href="#training"><i class="fas fa-graduation-cap"></i> Formations</a>
-        <a href="#videos"><i class="fas fa-video"></i> Vidéos</a>
-        <a href="#posters"><i class="fas fa-image"></i> Affiches</a>
-        <a href="#volunteering"><i class="fas fa-hands-helping"></i> Bénévolat</a>
-        <a href="#legal"><i class="fas fa-balance-scale"></i> Droit</a>
-        <a href="#forum-articles"><i class="fas fa-newspaper"></i> Articles</a>
-        <a href="#admin" id="adminLinkSidebar" class="hidden"><i class="fas fa-cog"></i> Admin</a>
-    </div>
-</div>
-<div class="overlay" id="overlay"></div>
-
-<div class="disclaimer-bar" id="disclaimerText">⚠️ Nous ne soutenons pas l'immigration illégale</div>
-
-<nav class="navbar">
-    <div class="nav-inner">
-        <div style="display: flex; align-items: center;">
-            <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
-            <img id="navLogo" class="nav-logo" src="" alt="Logo" style="display: none;">
-            <a href="#home" class="nav-brand" id="brandName">Nouvel horizon d'emploi</a>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <img id="sidebarLogo" src="" alt="Logo" style="display: none;">
+            <h3 id="sidebarBrand">Nouvel horizon</h3>
         </div>
-        <button class="nav-toggle" id="navToggle"><i class="fas fa-bars"></i></button>
-        <div class="nav-menu" id="navMenu">
-            <ul class="nav-links">
-                <li><a href="#home" class="active">Accueil</a></li><li><a href="#register">Inscription</a></li>
-                <li><a href="#jobs">Emplois</a></li><li><a href="#training">Formations</a></li>
-                <li><a href="#videos">Vidéos</a></li><li><a href="#posters">Affiches</a></li>
-                <li><a href="#volunteering">Bénévolat</a></li><li><a href="#legal">Droit</a></li>
-                <li><a href="#forum-articles">Articles</a></li>
-                <li><a href="#admin" id="adminLink" class="hidden">Admin</a></li>
-            </ul>
-            <div class="nav-actions">
-                <select id="langSwitch"><option value="fr">🇫🇷 FR</option><option value="en">🇬🇧 EN</option><option value="ar">🇸🇦 AR</option></select>
-                <button class="btn btn-outline btn-sm" id="btnLogin">Connexion</button>
-                <button class="btn btn-primary btn-sm" id="btnRegister">Inscription</button>
-                <span id="userBadge" class="hidden"></span>
-                <button class="btn btn-outline btn-sm hidden" id="btnLogout">Déconnexion</button>
+        <div class="sidebar-nav">
+            <a href="#home"><i class="fas fa-home"></i> Accueil</a>
+            <a href="#register"><i class="fas fa-user-plus"></i> Inscription</a>
+            <a href="#jobs"><i class="fas fa-briefcase"></i> Emplois</a>
+            <a href="#training"><i class="fas fa-graduation-cap"></i> Formations</a>
+            <a href="#videos"><i class="fas fa-video"></i> Vidéos</a>
+            <a href="#posters"><i class="fas fa-image"></i> Affiches</a>
+            <a href="#volunteering"><i class="fas fa-hands-helping"></i> Bénévolat</a>
+            <a href="#legal"><i class="fas fa-balance-scale"></i> Droit</a>
+            <a href="#forum-articles" id="forumSidebarLink"><i class="fas fa-newspaper"></i> Articles</a>
+            <a href="#admin" id="adminLinkSidebar" class="hidden"><i class="fas fa-cog"></i> Admin</a>
+        </div>
+    </div>
+    <div class="overlay" id="overlay"></div>
+
+    <div class="disclaimer-bar">⚠️ Nous ne soutenons pas l'immigration illégale - We do not support illegal immigration - نحن لا ندعم الهجرة غير الشرعية</div>
+
+    <nav class="navbar">
+        <div class="nav-inner">
+            <div style="display: flex; align-items: center;">
+                <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+                <a href="#home" class="nav-brand">
+                    <img id="navLogo" class="nav-logo hidden" src="" alt="Logo" style="display:none;">
+                    <i id="navIcon" class="fas fa-globe-europe"></i>
+                    <span>Nouvel horizon d'emploi</span>
+                </a>
+            </div>
+            <button class="nav-toggle" id="navToggle"><i class="fas fa-bars"></i></button>
+            <div class="nav-menu" id="navMenu">
+                <ul class="nav-links">
+                    <li><a href="#home" class="active">Accueil</a></li>
+                    <li><a href="#register">Inscription</a></li>
+                    <li><a href="#jobs">Emplois</a></li>
+                    <li><a href="#training">Formations</a></li>
+                    <li><a href="#videos">Vidéos</a></li>
+                    <li><a href="#posters">Affiches</a></li>
+                    <li><a href="#volunteering">Bénévolat</a></li>
+                    <li><a href="#legal">Droit</a></li>
+                    <li><a href="#forum-articles">Articles</a></li>
+                    <li><a href="#admin" id="adminLink" class="hidden">🔧 Admin</a></li>
+                </ul>
+                <div class="nav-actions">
+                    <select id="langSwitch" style="padding:.3rem;border-radius:6px;border:1px solid #ccc;font-size:.8rem;">
+                        <option value="fr">🇫🇷 FR</option>
+                        <option value="en">🇬🇧 EN</option>
+                        <option value="ar">🇸🇦 AR</option>
+                    </select>
+                    <button class="btn btn-outline btn-sm" id="btnLogin"><i class="fas fa-sign-in-alt"></i> Connexion</button>
+                    <button class="btn btn-primary btn-sm" id="btnRegister"><i class="fas fa-user-plus"></i> Inscription</button>
+                    <span id="userBadge" class="hidden" style="font-weight:600;color:var(--p);font-size:.8rem;"></span>
+                    <button class="btn btn-outline btn-sm hidden" id="btnLogout"><i class="fas fa-sign-out-alt"></i> Déconnexion</button>
+                </div>
             </div>
         </div>
+    </nav>
+
+    <main>
+        <!-- HOME -->
+        <section id="home" class="section">
+            <div class="container">
+                <div class="hero">
+                    <h1>Bienvenue sur Nouvel horizon d'emploi</h1>
+                    <p>Plateforme dédiée à l'insertion professionnelle des réfugiés et migrants en France.</p>
+                    <div class="hero-btns">
+                        <a href="#register" class="btn btn-primary"><i class="fas fa-user-plus"></i> Créer un compte</a>
+                        <a href="#jobs" class="btn btn-outline"><i class="fas fa-briefcase"></i> Voir les offres</a>
+                    </div>
+                </div>
+                <div class="grid-4">
+                    <div class="card"><i class="fas fa-briefcase"></i><h3>Emplois</h3><p>Offres dans votre ville</p></div>
+                    <div class="card"><i class="fas fa-graduation-cap"></i><h3>Formations</h3><p>Coursera, LinkedIn</p></div>
+                    <div class="card"><i class="fas fa-balance-scale"></i><h3>Droits</h3><p>CESEDA, CEAS</p></div>
+                    <div class="card"><i class="fas fa-video"></i><h3>Ressources</h3><p>Vidéos, affiches</p></div>
+                </div>
+                <div class="section-title" style="margin-top:2rem;">
+                    <h2>🎬 Dernières vidéos</h2>
+                    <a href="#videos" class="view-all" onclick="showSection('videos')">Voir tout →</a>
+                </div>
+                <div class="grid-3" id="homeVideosList"><p class="loading">Chargement...</p></div>
+                <div class="section-title" style="margin-top:1.5rem;">
+                    <h2>🖼️ Dernières affiches</h2>
+                    <a href="#posters" class="view-all" onclick="showSection('posters')">Voir tout →</a>
+                </div>
+                <div class="grid-3" id="homePostersList"><p class="loading">Chargement...</p></div>
+                <div class="section-title" style="margin-top:1.5rem;">
+                    <h2>📝 Derniers articles</h2>
+                    <a href="#forum-articles" class="view-all" onclick="showSection('forum-articles')">Voir tout →</a>
+                </div>
+                <div class="grid-2" id="homeArticlesList"><p class="loading">Chargement...</p></div>
+            </div>
+        </section>
+
+        <!-- REGISTER -->
+        <section id="register" class="section hidden">
+            <div class="container" style="max-width:450px">
+                <h2>Créer votre compte</h2>
+                <div class="social-btns">
+                    <button class="btn btn-google btn-block" onclick="registerGoogle()"><i class="fab fa-google"></i> Google</button>
+                    <button class="btn btn-facebook btn-block" onclick="registerFacebook()"><i class="fab fa-facebook-f"></i> Facebook</button>
+                </div>
+                <button class="btn btn-phone btn-block" style="margin-top:.5rem;" onclick="registerPhone()"><i class="fas fa-mobile-alt"></i> +33 Téléphone</button>
+                <div class="divider">ou par email</div>
+                <form id="formRegister" class="form-box">
+                    <input type="text" class="form-input" id="regName" placeholder="Nom complet" required>
+                    <input type="email" class="form-input" id="regEmail" placeholder="Email" required>
+                    <input type="password" class="form-input" id="regPass" placeholder="Mot de passe (6+)" required minlength="6">
+                    <input type="password" class="form-input" id="regPass2" placeholder="Confirmer mot de passe" required>
+                    <button type="submit" class="btn btn-primary btn-block">S'inscrire</button>
+                </form>
+                <p style="text-align:center;margin-top:.75rem;font-size:.85rem;">Déjà un compte ? <a href="#" onclick="showLogin()" style="color:var(--p);font-weight:600;">Se connecter</a></p>
+            </div>
+        </section>
+
+        <!-- PROFILE -->
+        <section id="profile" class="section hidden">
+            <div class="container" style="max-width:450px">
+                <h2>Compléter votre profil</h2>
+                <form id="formProfile" class="form-box">
+                    <select class="form-select" id="profStatus" required><option value="">Statut *</option><option value="jobseeker">Demandeur d'emploi</option><option value="trainee">Stagiaire</option><option value="volunteer">Bénévole</option></select>
+                    <select class="form-select" id="profCity" required><option value="">Ville *</option><option>Paris</option><option>Lyon</option><option>Marseille</option><option>Lille</option><option>Strasbourg</option></select>
+                    <select class="form-select" id="profLegal"><option value="">Situation (confidentiel)</option><option value="asylum">Demandeur d'asile</option><option value="refugee">Réfugié</option><option value="undocumented">Sans papiers</option></select>
+                    <button type="submit" class="btn btn-primary btn-block">✓ Enregistrer</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- JOBS -->
+        <section id="jobs" class="section">
+            <div class="container">
+                <h2>Offres d'Emploi</h2>
+                <div class="filters">
+                    <input type="text" id="jobSearch" placeholder="🔍 Rechercher...">
+                    <select id="jobCity"><option value="">Toutes villes</option></select>
+                    <select id="jobContract"><option value="">Tous contrats</option><option>CDI</option><option>CDD</option><option>Intérim</option></select>
+                </div>
+                <div class="grid-2" id="jobsList"><p class="loading">Chargement...</p></div>
+            </div>
+        </section>
+
+        <!-- TRAINING -->
+        <section id="training" class="section">
+            <div class="container">
+                <h2>Formations</h2>
+                <div class="grid-3">
+                    <a href="https://coursera.org/refugees" target="_blank" class="card"><i class="fas fa-university"></i><h3>Coursera</h3><p>Cours gratuits</p></a>
+                    <a href="https://linkedin.com/learning" target="_blank" class="card"><i class="fab fa-linkedin"></i><h3>LinkedIn Learning</h3><p>Compétences pro</p></a>
+                    <a href="https://pole-emploi.fr" target="_blank" class="card"><i class="fas fa-building"></i><h3>Pôle Emploi</h3><p>Formations France</p></a>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIDEOS -->
+        <section id="videos" class="section">
+            <div class="container">
+                <h2>Vidéos Éducatives</h2>
+                <div class="grid-3" id="videosList"><p class="loading">Chargement...</p></div>
+            </div>
+        </section>
+
+        <!-- POSTERS -->
+        <section id="posters" class="section">
+            <div class="container">
+                <h2>Affiches Informatives</h2>
+                <div class="grid-3" id="postersList"><p class="loading">Chargement...</p></div>
+            </div>
+        </section>
+
+        <!-- VOLUNTEERING -->
+        <section id="volunteering" class="section">
+            <div class="container">
+                <h2>Bénévolat</h2>
+                <div class="grid-2" id="volList"><p class="loading">Chargement...</p></div>
+            </div>
+        </section>
+
+        <!-- LEGAL -->
+        <section id="legal" class="section">
+            <div class="container">
+                <h2>Cadre Juridique</h2>
+                <div class="grid-3">
+                    <div class="card"><h3>🇫🇷 Loi Immigration</h3><p>CESEDA</p><a href="https://legifrance.gouv.fr" target="_blank" class="btn btn-outline btn-sm">Consulter →</a></div>
+                    <div class="card"><h3>🇪🇺 Politique UE</h3><p>CEAS</p><a href="https://home-affairs.ec.europa.eu" target="_blank" class="btn btn-outline btn-sm">Consulter →</a></div>
+                    <div class="card"><h3>🌍 Convention Genève</h3><p>1951</p><a href="https://unhcr.org/fr" target="_blank" class="btn btn-outline btn-sm">Consulter →</a></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FORUM / ARTICLES with Rich Text Editor -->
+        <section id="forum-articles" class="section hidden">
+            <div class="container">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap;">
+                    <h2>📝 Forum & Articles</h2>
+                    <button class="btn btn-primary btn-sm" onclick="toggleArticleForm()"><i class="fas fa-plus"></i> Écrire un article</button>
+                </div>
+                
+                <div id="articleForm" class="hidden" style="background: white; padding: 1rem; border-radius: var(--r); margin-bottom: 2rem;">
+                    <h3>✍️ Rédiger un article (Éditeur riche)</h3>
+                    <input type="text" id="articleTitle" class="form-input" placeholder="Titre de l'article" style="margin-bottom: 10px; font-size: 1.2rem; font-weight: bold;">
+                    <div id="editorContainer" style="min-height: 300px; margin-bottom: 10px;"></div>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button class="btn btn-primary" onclick="publishArticle()">📢 Publier</button>
+                        <button class="btn btn-outline" onclick="toggleArticleForm()">Annuler</button>
+                    </div>
+                </div>
+
+                <div id="articlesList" class="grid-2"><p class="loading">Chargement des articles...</p></div>
+            </div>
+        </section>
+
+        <!-- ADMIN -->
+        <section id="admin" class="section hidden">
+            <div class="container">
+                <h2>🔧 Administration</h2>
+                <div class="admin-tabs">
+                    <button class="admin-tab active" data-tab="dashboard">📊 Tableau</button>
+                    <button class="admin-tab" data-tab="users">👥 Utilisateurs</button>
+                    <button class="admin-tab" data-tab="jobs-manage">💼 Offres</button>
+                    <button class="admin-tab" data-tab="videos-manage">🎬 Vidéos</button>
+                    <button class="admin-tab" data-tab="posters-manage">🖼️ Affiches</button>
+                    <button class="admin-tab" data-tab="articles-manage">📄 Articles</button>
+                    <button class="admin-tab" data-tab="settings">⚙️ Paramètres</button>
+                    <button class="admin-tab" data-tab="admins">🛡️ Admins</button>
+                </div>
+                <div class="admin-content" id="adminContent"></div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal for full article -->
+    <div id="articleModal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeArticleModal()">&times;</button>
+            <div id="modalArticleContent"></div>
+        </div>
     </div>
-</nav>
 
-<main>
-    <!-- HOME -->
-    <section id="home" class="section">
-        <div class="container">
-            <div class="hero"><h1 id="heroTitle">Bienvenue sur Nouvel horizon d'emploi</h1><p id="heroDesc">Plateforme dédiée à l'insertion professionnelle des réfugiés et migrants en France.</p><div class="hero-btns"><a href="#register" class="btn btn-primary" id="heroCreateBtn">Créer un compte</a><a href="#jobs" class="btn btn-outline" id="heroJobsBtn">Voir les offres</a></div></div>
-            <div class="grid-4"><div class="card"><i class="fas fa-briefcase"></i><h3>Emplois</h3><p>Offres dans votre ville</p></div><div class="card"><i class="fas fa-graduation-cap"></i><h3>Formations</h3><p>Cours gratuits</p></div><div class="card"><i class="fas fa-balance-scale"></i><h3>Droits</h3><p>CESEDA, CEAS</p></div><div class="card"><i class="fas fa-newspaper"></i><h3>Articles</h3><p>Actualités</p></div></div>
-            <div class="section-title"><h2 id="latestArticlesTitle">📝 Derniers articles</h2><a href="#forum-articles" class="view-all" onclick="showSection('forum-articles')">Voir tout →</a></div><div id="homeArticlesList" class="grid-2"><p class="loading">Chargement...</p></div>
+    <footer class="footer">
+        <div class="footer-grid">
+            <div>
+                <img id="footerLogo" class="footer-logo" src="" alt="Logo" style="display:none;">
+                <h4>Nouvel horizon d'emploi</h4>
+                <p>📍 Lille, France</p>
+                <p>📞 0033 7 58 17 22 11</p>
+            </div>
+            <div><h4>Liens</h4><a href="#jobs">Emplois</a><a href="#training">Formations</a></div>
+            <div><h4>Légal</h4><a href="#">Mentions</a><a href="#">RGPD</a></div>
         </div>
-    </section>
+        <p style="margin-top:1rem;font-size:.7rem;opacity:.7;">© 2024 Nouvel horizon d'emploi - Conforme RGPD - France</p>
+    </footer>
 
-    <!-- REGISTER -->
-    <section id="register" class="section hidden"><div class="container" style="max-width:450px"><h2>Créer votre compte</h2><form id="formRegister" class="form-box"><input type="text" class="form-input" id="regName" placeholder="Nom complet" required><input type="email" class="form-input" id="regEmail" placeholder="Email" required><input type="password" class="form-input" id="regPass" placeholder="Mot de passe (6+)" required><input type="password" class="form-input" id="regPass2" placeholder="Confirmer" required><button type="submit" class="btn btn-primary btn-block">S'inscrire</button></form><p style="text-align:center;margin-top:1rem;">Déjà un compte ? <a href="#" onclick="showLogin()">Se connecter</a></p></div></section>
+    <div class="toast-container" id="toastContainer"></div>
 
-    <!-- PROFILE -->
-    <section id="profile" class="section hidden"><div class="container" style="max-width:450px"><h2>Compléter votre profil</h2><form id="formProfile" class="form-box"><select class="form-select" id="profStatus" required><option value="">Statut *</option><option value="jobseeker">Demandeur d'emploi</option><option value="trainee">Stagiaire</option></select><select class="form-select" id="profCity" required><option value="">Ville *</option><option>Paris</option><option>Lyon</option><option>Marseille</option></select><select class="form-select" id="profLegal"><option value="">Situation</option><option value="asylum">Demandeur d'asile</option><option value="refugee">Réfugié</option></select><button type="submit" class="btn btn-primary btn-block">✓ Enregistrer</button></form></div></section>
-
-    <!-- JOBS -->
-    <section id="jobs" class="section"><div class="container"><h2>Offres d'Emploi</h2><div class="filters"><input type="text" id="jobSearch" placeholder="🔍 Rechercher..."><select id="jobCity"><option value="">Toutes villes</option></select><select id="jobContract"><option value="">Tous contrats</option><option>CDI</option><option>CDD</option></select></div><div id="jobsList" class="grid-2"><p class="loading">Chargement...</p></div></div></section>
-
-    <!-- TRAINING -->
-    <section id="training" class="section"><div class="container"><h2>Formations</h2><div class="grid-3"><a href="https://coursera.org/refugees" target="_blank" class="card"><i class="fas fa-university"></i><h3>Coursera</h3><p>Cours gratuits</p></a><a href="https://linkedin.com/learning" target="_blank" class="card"><i class="fab fa-linkedin"></i><h3>LinkedIn Learning</h3><p>Compétences pro</p></a><a href="https://pole-emploi.fr" target="_blank" class="card"><i class="fas fa-building"></i><h3>Pôle Emploi</h3><p>Formations France</p></a></div></div></section>
-
-    <!-- VIDEOS -->
-    <section id="videos" class="section"><div class="container"><h2>Vidéos Éducatives</h2><div class="grid-3" id="videosList"><p class="loading">Chargement...</p></div></div></section>
-
-    <!-- POSTERS -->
-    <section id="posters" class="section"><div class="container"><h2>Affiches Informatives</h2><div class="grid-3" id="postersList"><p class="loading">Chargement...</p></div></div></section>
-
-    <!-- VOLUNTEERING -->
-    <section id="volunteering" class="section"><div class="container"><h2>Bénévolat</h2><div class="grid-2" id="volList"><p class="loading">Chargement...</p></div></div></section>
-
-    <!-- LEGAL -->
-    <section id="legal" class="section"><div class="container"><h2>Cadre Juridique</h2><div class="grid-3"><div class="card"><h3>🇫🇷 Loi Immigration</h3><p>CESEDA</p><a href="#" class="btn btn-outline btn-sm">Consulter →</a></div><div class="card"><h3>🇪🇺 Politique UE</h3><p>CEAS</p><a href="#" class="btn btn-outline btn-sm">Consulter →</a></div><div class="card"><h3>🌍 Convention Genève</h3><p>1951</p><a href="#" class="btn btn-outline btn-sm">Consulter →</a></div></div></div></section>
-
-    <!-- ARTICLES -->
-    <section id="forum-articles" class="section hidden">
-        <div class="container">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;"><h2>📝 Articles & Actualités</h2><button class="btn btn-primary btn-sm" onclick="openArticleEditor()"><i class="fas fa-plus"></i> Écrire un article</button></div>
-            <div id="articleEditor" class="hidden" style="background:white;padding:1rem;border-radius:var(--r);margin-bottom:2rem;"><h3 id="editorTitle">✍️ Rédiger un article</h3><div class="editor-toolbar"><button type="button" onclick="wrapText('**','**')"><b>Bold</b></button><button type="button" onclick="wrapText('*','*')"><i>Italic</i></button><button type="button" onclick="wrapText('## ','')">H2</button><button type="button" onclick="wrapText('> ','')">Quote</button><button type="button" id="uploadImageBtn"><i class="fas fa-image"></i> Insérer image</button></div><input type="text" id="articleTitle" class="form-input" placeholder="Titre" style="margin-bottom:10px;"><textarea id="articleContent" class="form-textarea" placeholder="Contenu (Markdown: **gras**, *italique*)"></textarea><input type="hidden" id="editArticleId"><div style="display:flex;gap:10px;margin-top:10px;"><button class="btn btn-primary" onclick="saveArticle()" id="saveArticleBtn">📢 Publier</button><button class="btn btn-outline" onclick="closeArticleEditor()">Annuler</button></div></div>
-            <div id="articlesList" class="grid-2"><p class="loading">Chargement...</p></div>
-        </div>
-    </section>
-
-    <!-- ADMIN -->
-    <section id="admin" class="section hidden"><div class="container"><h2>🔧 Administration</h2><div class="admin-tabs"><button class="admin-tab active" data-tab="dashboard">📊 Tableau</button><button class="admin-tab" data-tab="users">👥 Utilisateurs</button><button class="admin-tab" data-tab="jobs-manage">💼 Offres</button><button class="admin-tab" data-tab="videos-manage">🎬 Vidéos</button><button class="admin-tab" data-tab="posters-manage">🖼️ Affiches</button><button class="admin-tab" data-tab="articles-manage">📄 Articles</button><button class="admin-tab" data-tab="settings">⚙️ Logo</button><button class="admin-tab" data-tab="admins">🛡️ Admins</button></div><div class="admin-content" id="adminContent"></div></div></section>
-</main>
-
-<footer class="footer"><div class="container"><img id="footerLogo" src="" alt="Logo" style="width:50px;height:50px;display:none;margin-bottom:10px;"><p>© 2025 Nouvel horizon d'emploi - Conforme RGPD</p></div></footer>
-<div class="toast-container" id="toastContainer"></div>
-
-<script>
-    // Firebase Config
-    firebase.initializeApp({ apiKey: "AIzaSyB2TlPdeABj2DFzh8lSb0vpTQuCaBlqfvA", authDomain: "organisation-d97e7.firebaseapp.com", projectId: "organisation-d97e7", storageBucket: "organisation-d97e7.firebasestorage.app", messagingSenderId: "770760173166", appId: "1:770760173166:web:09297aa9e2021a33eb687f" });
-    const auth = firebase.auth(), db = firebase.firestore(), storage = firebase.storage();
-    
-    let currentUser = null, cachedJobs = [], cachedVideos = [], cachedPosters = [], cachedArticles = [], cachedAdmins = [], currentLang = 'fr';
-    
-    // Translations
-    const translations = {
-        fr: { heroTitle: "Bienvenue sur Nouvel horizon d'emploi", heroDesc: "Plateforme dédiée à l'insertion professionnelle des réfugiés.", heroCreateBtn: "Créer un compte", heroJobsBtn: "Voir les offres", latestArticlesTitle: "📝 Derniers articles", disclaimer: "⚠️ Nous ne soutenons pas l'immigration illégale", writeArticle: "Écrire un article", edit: "Modifier", delete: "Supprimer", readMore: "Lire plus" },
-        en: { heroTitle: "Welcome to New Employment Horizon", heroDesc: "Platform for refugee professional integration.", heroCreateBtn: "Create Account", heroJobsBtn: "View Jobs", latestArticlesTitle: "📝 Latest Articles", disclaimer: "⚠️ We do not support illegal immigration", writeArticle: "Write Article", edit: "Edit", delete: "Delete", readMore: "Read more" },
-        ar: { heroTitle: "مرحباً في أفق التوظيف الجديد", heroDesc: "منصة لإدماج اللاجئين مهنياً.", heroCreateBtn: "إنشاء حساب", heroJobsBtn: "عرض الوظائف", latestArticlesTitle: "📝 أحدث المقالات", disclaimer: "⚠️ نحن لا ندعم الهجرة غير الشرعية", writeArticle: "كتابة مقال", edit: "تعديل", delete: "حذف", readMore: "اقرأ أكثر" }
-    };
-    
-    function updateUILanguage() { let t = translations[currentLang]; if(t){ document.getElementById('heroTitle').innerText = t.heroTitle; document.getElementById('heroDesc').innerText = t.heroDesc; document.getElementById('heroCreateBtn').innerText = t.heroCreateBtn; document.getElementById('heroJobsBtn').innerText = t.heroJobsBtn; document.getElementById('latestArticlesTitle').innerText = t.latestArticlesTitle; document.getElementById('disclaimerText').innerText = t.disclaimer; } document.body.classList.toggle('rtl', currentLang === 'ar'); }
-    function toast(msg, type = 'success') { let c = document.getElementById('toastContainer'), t = document.createElement('div'); t.className = `toast toast-${type}`; t.textContent = msg; c.appendChild(t); setTimeout(() => t.remove(), 3000); }
-    function showSection(id) { document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); window.scrollTo({ top: 0, behavior: 'smooth' }); closeSidebar(); if(id === 'admin') renderAdmin('dashboard'); if(id === 'forum-articles') renderArticles(); }
-    function isLoggedIn() { return !!currentUser; }
-    function isAdmin() { return currentUser && cachedAdmins.includes(currentUser.email); }
-    function updateUI() { let l = isLoggedIn(), a = isAdmin(); document.getElementById('btnLogin').classList.toggle('hidden', l); document.getElementById('btnRegister').classList.toggle('hidden', l); document.getElementById('btnLogout').classList.toggle('hidden', !l); document.getElementById('adminLink').classList.toggle('hidden', !a); document.getElementById('adminLinkSidebar').classList.toggle('hidden', !a); let b = document.getElementById('userBadge'); if (l) { b.classList.remove('hidden'); b.textContent = `👤 ${currentUser.name || currentUser.email}`; } else b.classList.add('hidden'); }
-    
-    // Auth
-    async function registerEmail(n, e, p, p2) { if (p !== p2) return toast('❌ Mots de passe différents', 'error'); try { const cred = await auth.createUserWithEmailAndPassword(e, p); currentUser = { id: cred.user.uid, name: n, email: e }; await db.collection('users').doc(cred.user.uid).set(currentUser); updateUI(); toast('✅ Compte créé !'); showSection('profile'); } catch (err) { toast('❌ ' + err.message, 'error'); } }
-    async function showLogin() { let e = prompt('📧 Email:'); if (!e) return; let p = prompt('🔑 Mot de passe:'); if (!p) return; try { const cred = await auth.signInWithEmailAndPassword(e, p); const doc = await db.collection('users').doc(cred.user.uid).get(); currentUser = doc.exists ? doc.data() : { id: cred.user.uid, name: e, email: e }; updateUI(); toast('✅ Connecté !'); showSection('jobs'); } catch (err) { toast('❌ Identifiants incorrects', 'error'); } }
-    async function logout() { await auth.signOut(); currentUser = null; updateUI(); toast('👋 Déconnecté'); showSection('home'); }
-    async function saveProfile(status, city, legal) { if (!currentUser) return; currentUser.status = status; currentUser.city = city; currentUser.legalStatus = legal; currentUser.profileComplete = true; await db.collection('users').doc(currentUser.id).set(currentUser, { merge: true }); updateUI(); toast('✅ Profil enregistré'); showSection('jobs'); }
-    
-    // Jobs
-    async function renderJobs() { let filtered = [...cachedJobs], cf = document.getElementById('jobCity').value, kf = document.getElementById('jobContract').value, sf = document.getElementById('jobSearch').value.toLowerCase(); if(cf) filtered = filtered.filter(x => x.city === cf); if(kf) filtered = filtered.filter(x => x.contract === kf); if(sf) filtered = filtered.filter(x => x.title.toLowerCase().includes(sf)); let c = document.getElementById('jobsList'); if(!filtered.length){ c.innerHTML = '<p class="loading">Aucune offre</p>'; return; } c.innerHTML = filtered.map(j => `<div class="job-card"><h4>${j.title}</h4><span class="badge badge-blue">📍 ${j.city}</span><span class="badge badge-green">📄 ${j.contract}</span><p>${j.desc || ''}</p><button class="btn btn-primary btn-sm" onclick="applyJob(${j.id})">Postuler</button></div>`).join(''); }
-    function applyJob(id) { if (!isLoggedIn()) return toast('Connectez-vous', 'warning'); toast('✅ Candidature envoyée'); }
-    function populateCities() { let s = document.getElementById('jobCity'); let cs = [...new Set(cachedJobs.map(j => j.city))]; s.innerHTML = '<option value="">Toutes villes</option>' + cs.map(c => '<option value="' + c + '">' + c.charAt(0).toUpperCase() + c.slice(1) + '</option>').join(''); }
-    
-    // Videos & Posters
-    async function uploadFileToStorage(folder, file) { if (file.size > 2048 * 1024 * 1024) { toast('❌ Fichier trop volumineux (max 2GB)', 'error'); return null; } const ref = storage.ref(`${folder}/${Date.now()}_${file.name}`); await ref.put(file); return await ref.getDownloadURL(); }
-    async function triggerVideoUpload() { if (!isAdmin()) return toast('Accès réservé', 'warning'); let input = document.createElement('input'); input.type = 'file'; input.accept = 'video/*'; input.onchange = async e => { let file = e.target.files[0]; if (!file) return; toast('⏳ Upload...', 'warning'); let url = await uploadFileToStorage('videos', file); if (!url) return; let title = prompt('🎬 Titre:', file.name) || 'Vidéo'; let video = { id: Date.now(), title, dataUrl: url, fileType: file.type }; await db.collection('videos').doc(String(video.id)).set(video); cachedVideos.push(video); renderVideos(); renderAdmin('videos-manage'); toast('✅ Vidéo ajoutée'); }; input.click(); }
-    async function triggerPosterUpload() { if (!isAdmin()) return toast('Accès réservé', 'warning'); let input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.onchange = async e => { let file = e.target.files[0]; if (!file) return; toast('⏳ Upload...', 'warning'); let url = await uploadFileToStorage('posters', file); if (!url) return; let title = prompt('🖼️ Titre:', file.name) || 'Affiche'; let poster = { id: Date.now(), title, dataUrl: url }; await db.collection('posters').doc(String(poster.id)).set(poster); cachedPosters.push(poster); renderPosters(); renderAdmin('posters-manage'); toast('✅ Affiche ajoutée'); }; input.click(); }
-    async function renderVideos() { let c = document.getElementById('videosList'); if (!cachedVideos.length) { c.innerHTML = '<p class="loading">Aucune vidéo</p>'; return; } c.innerHTML = cachedVideos.map(v => `<div class="card"><video src="${v.dataUrl}" controls style="width:100%;height:180px;object-fit:cover;border-radius:8px;"></video><h4>${v.title}</h4>${isAdmin() ? `<button class="btn btn-danger btn-sm" onclick="deleteVideo('${v.id}')">🗑️ Supprimer</button>` : ''}</div>`).join(''); }
-    async function renderPosters() { let c = document.getElementById('postersList'); if (!cachedPosters.length) { c.innerHTML = '<p class="loading">Aucune affiche</p>'; return; } c.innerHTML = cachedPosters.map(p => `<div class="card"><img src="${p.dataUrl}" style="width:100%;height:150px;object-fit:cover;border-radius:8px;"><h4>${p.title}</h4>${isAdmin() ? `<button class="btn btn-danger btn-sm" onclick="deletePoster('${p.id}')">🗑️ Supprimer</button>` : ''}</div>`).join(''); }
-    async function deleteVideo(id) { await db.collection('videos').doc(String(id)).delete(); cachedVideos = cachedVideos.filter(v => v.id != id); renderVideos(); renderAdmin('videos-manage'); toast('Vidéo supprimée'); }
-    async function deletePoster(id) { await db.collection('posters').doc(String(id)).delete(); cachedPosters = cachedPosters.filter(p => p.id != id); renderPosters(); renderAdmin('posters-manage'); toast('Affiche supprimée'); }
-    
-    // Volunteering
-    function renderVolunteering() { const d = [{ org: 'Restos du Cœur', city: 'Paris', task: 'Distribution alimentaire' }, { org: 'La Cimade', city: 'Lyon', task: 'Accompagnement juridique' }, { org: 'Secours Populaire', city: 'Marseille', task: 'Aide aux réfugiés' }]; document.getElementById('volList').innerHTML = d.map(v => `<div class="job-card" style="border-left-color:var(--s)"><h4>${v.org}</h4><span class="badge badge-blue">📍 ${v.city}</span><p>${v.task}</p><button class="btn btn-outline btn-sm" onclick="volSign('${v.org}')">Devenir bénévole</button></div>`).join(''); }
-    function volSign(o) { if (!isLoggedIn()) return toast('Connectez-vous', 'warning'); toast(`✅ Inscription bénévole : ${o}`); }
-    
-    // Articles
-    async function uploadArticleImage() { if (!isLoggedIn()) return toast('Connectez-vous', 'warning'); let input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.onchange = async e => { let file = e.target.files[0]; if (!file) return; toast('Upload image...', 'warning'); let url = await uploadFileToStorage('article_images', file); if (!url) return; let ta = document.getElementById('articleContent'); ta.value += `\n![image](${url})\n`; toast('✅ Image ajoutée'); }; input.click(); }
-    function wrapText(before, after) { let ta = document.getElementById('articleContent'); let start = ta.selectionStart, end = ta.selectionEnd, text = ta.value; let selected = text.substring(start, end); ta.value = text.substring(0, start) + before + selected + after + text.substring(end); ta.focus(); }
-    function simpleMarkdown(text) { return text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*(.*?)\*/g, '<i>$1</i>').replace(/## (.*?)(\n|$)/g, '<h4>$1</h4>').replace(/> (.*?)(\n|$)/g, '<blockquote style="border-left:3px solid #ccc;padding-left:10px;margin:5px 0;">$1</blockquote>').replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" style="max-width:100%;border-radius:8px;margin:10px 0;">').replace(/\n/g, '<br>'); }
-    function openArticleEditor(article = null) { document.getElementById('articleEditor').classList.remove('hidden'); if (article) { document.getElementById('articleTitle').value = article.title; document.getElementById('articleContent').value = article.content; document.getElementById('editArticleId').value = article.id; document.getElementById('editorTitle').innerText = '✍️ Modifier l\'article'; document.getElementById('saveArticleBtn').innerHTML = '✏️ Modifier'; } else { document.getElementById('articleTitle').value = ''; document.getElementById('articleContent').value = ''; document.getElementById('editArticleId').value = ''; document.getElementById('editorTitle').innerText = '✍️ Rédiger un article'; document.getElementById('saveArticleBtn').innerHTML = '📢 Publier'; } }
-    function closeArticleEditor() { document.getElementById('articleEditor').classList.add('hidden'); document.getElementById('editArticleId').value = ''; }
-    async function saveArticle() { if (!isLoggedIn()) return toast('Connectez-vous', 'warning'); let id = document.getElementById('editArticleId').value, title = document.getElementById('articleTitle').value.trim(), content = document.getElementById('articleContent').value.trim(); if (!title || !content) return toast('Titre et contenu requis', 'error'); let data = { title, content, author: currentUser.email, authorName: currentUser.name || currentUser.email, date: new Date().toISOString() }; if (id) { await db.collection('articles').doc(String(id)).update(data); let idx = cachedArticles.findIndex(a => a.id == id); if (idx !== -1) cachedArticles[idx] = { ...cachedArticles[idx], ...data }; toast('✅ Article modifié'); } else { let newId = Date.now(); data.id = newId; await db.collection('articles').doc(String(newId)).set(data); cachedArticles.unshift(data); toast('✅ Article publié'); } closeArticleEditor(); renderArticles(); renderHomeArticles(); }
-    async function renderArticles() { let c = document.getElementById('articlesList'); if (!cachedArticles.length) { c.innerHTML = '<p class="loading">Aucun article. Écrivez le premier !</p>'; return; } let t = translations[currentLang]; c.innerHTML = cachedArticles.map(a => `<div class="job-card" style="border-left-color:var(--a);"><h3>📄 ${a.title}</h3><small>✍️ ${a.authorName} - ${new Date(a.date).toLocaleDateString()}</small><div style="margin-top:8px;">${simpleMarkdown(a.content.substring(0, 200))}${a.content.length > 200 ? '...' : ''}</div><div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap;"><button class="btn btn-outline btn-sm" onclick="viewFullArticle('${a.id}')">${t?.readMore || 'Lire plus'}</button>${(isAdmin() || currentUser?.email === a.author) ? `<button class="btn btn-warning btn-sm" onclick="openArticleEditor(${JSON.stringify(a).replace(/"/g, '&quot;')})">✏️ ${t?.edit || 'Modifier'}</button><button class="btn btn-danger btn-sm" onclick="deleteArticle('${a.id}')">🗑️ ${t?.delete || 'Supprimer'}</button>` : ''}</div></div>`).join(''); }
-    function renderHomeArticles() { let c = document.getElementById('homeArticlesList'); if (!cachedArticles.length) { c.innerHTML = '<p class="loading">Aucun article récent</p>'; return; } c.innerHTML = cachedArticles.slice(0, 3).map(a => `<div class="job-card"><h4>📄 ${a.title}</h4><small>${a.authorName}</small><p>${simpleMarkdown(a.content.substring(0, 100))}...</p></div>`).join(''); }
-    function viewFullArticle(id) { let a = cachedArticles.find(a => a.id == id); let win = window.open(); win.document.write(`<html><head><title>${a.title}</title><style>body{font-family:sans-serif;padding:2rem;max-width:800px;margin:auto;line-height:1.6}</style></head><body><h1>${a.title}</h1><p><strong>${a.authorName}</strong> - ${new Date(a.date).toLocaleString()}</p><hr/><div>${simpleMarkdown(a.content)}</div><br/><a href="#" onclick="window.close()">Fermer</a></body></html>`); }
-    async function deleteArticle(id) { if (!confirm('Supprimer ?')) return; await db.collection('articles').doc(String(id)).delete(); cachedArticles = cachedArticles.filter(a => a.id != id); renderArticles(); renderHomeArticles(); if(document.getElementById('adminContent')) renderAdmin('articles-manage'); toast('Article supprimé'); }
-    
-    // Admin
-    async function renderAdmin(tab) { let c = document.getElementById('adminContent'); if (tab === 'dashboard') { let users = await db.collection('users').get(); c.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;"><div class="card"><h3>Utilisateurs</h3><p style="font-size:2rem;">${users.size}</p></div><div class="card"><h3>Articles</h3><p style="font-size:2rem;">${cachedArticles.length}</p></div><div class="card"><h3>Offres</h3><p style="font-size:2rem;">${cachedJobs.length}</p></div><div class="card"><h3>Vidéos</h3><p style="font-size:2rem;">${cachedVideos.length}</p></div><div class="card"><h3>Affiches</h3><p style="font-size:2rem;">${cachedPosters.length}</p></div></div>`; } else if (tab === 'users') { let snap = await db.collection('users').get(); c.innerHTML = `<table border="1" style="width:100%;border-collapse:collapse;"><table><th>Nom</th><th>Email</th><th>Action</th></tr>${snap.docs.map(d => `<tr><td>${d.data().name || '-'}${d.data().email} <button class="btn btn-danger btn-sm" onclick="delU('${d.id}')">🗑️</button>`).join('')}</table>`; } else if (tab === 'jobs-manage') { c.innerHTML = `<button class="btn btn-primary btn-sm" onclick="addJob()">+ Offre</button><br><br>${cachedJobs.map(j => `<div><b>${j.title}</b> (${j.city}) <button class="btn btn-danger btn-sm" onclick="deleteJob(${j.id})">🗑️</button></div>`).join('')}`; } else if (tab === 'videos-manage') { c.innerHTML = `<button class="btn btn-primary btn-sm" onclick="triggerVideoUpload()">+ Vidéo</button><br><br>${cachedVideos.map(v => `<div><b>${v.title}</b> <button class="btn btn-danger btn-sm" onclick="deleteVideo('${v.id}')">🗑️</button></div>`).join('')}`; } else if (tab === 'posters-manage') { c.innerHTML = `<button class="btn btn-primary btn-sm" onclick="triggerPosterUpload()">+ Affiche</button><br><br>${cachedPosters.map(p => `<div><b>${p.title}</b> <button class="btn btn-danger btn-sm" onclick="deletePoster('${p.id}')">🗑️</button></div>`).join('')}`; } else if (tab === 'articles-manage') { c.innerHTML = `<button class="btn btn-primary btn-sm" onclick="addFakeArticle()">+ Article test</button><br><br>${cachedArticles.map(a => `<div><b>${a.title}</b> - ${a.author} <button class="btn btn-danger btn-sm" onclick="deleteArticle('${a.id}')">🗑️</button></div>`).join('')}`; } else if (tab === 'admins') { c.innerHTML = `<button class="btn btn-primary btn-sm" onclick="addAdmin()">+ Admin</button><br><br>${cachedAdmins.map(a => `<div>${a} <button class="btn btn-danger btn-sm" onclick="removeAdmin('${a}')">🗑️</button></div>`).join('')}`; } else if (tab === 'settings') { let doc = await db.collection('settings').doc('logo').get(); let logoUrl = doc.exists ? doc.data().url : ''; c.innerHTML = `<h3>Logo actuel</h3><img src="${logoUrl || ''}" style="width:100px;height:100px;object-fit:contain;border-radius:12px;"><br><br><button class="btn btn-primary" onclick="uploadLogo()">Changer le logo</button>`; } }
-    async function addJob() { let title = prompt('Titre:'); if (!title) return; let city = prompt('Ville:'); let job = { id: Date.now(), title, city: city?.toLowerCase() || 'paris', contract: 'CDI', desc: '', date: new Date().toISOString().split('T')[0] }; await db.collection('jobs').doc(String(job.id)).set(job); cachedJobs.push(job); renderJobs(); renderAdmin('jobs-manage'); toast('Offre ajoutée'); }
-    async function deleteJob(id) { await db.collection('jobs').doc(String(id)).delete(); cachedJobs = cachedJobs.filter(j => j.id != id); renderJobs(); renderAdmin('jobs-manage'); toast('Offre supprimée'); }
-    async function delU(id) { if (!confirm('Supprimer ?')) return; await db.collection('users').doc(id).delete(); renderAdmin('users'); toast('Utilisateur supprimé'); }
-    async function addAdmin() { let email = prompt('Email admin:'); if (!email || cachedAdmins.includes(email)) return; await db.collection('admins').doc(email).set({ email }); cachedAdmins.push(email); renderAdmin('admins'); toast('Admin ajouté'); }
-    async function removeAdmin(email) { if (email === 'mosab649@gmail.com') return toast('Admin protégé', 'warning'); await db.collection('admins').doc(email).delete(); cachedAdmins = cachedAdmins.filter(e => e !== email); renderAdmin('admins'); toast('Admin supprimé'); }
-    async function addFakeArticle() { let fake = { id: Date.now(), title: 'Article test', content: 'Ceci est un **article** test.', author: 'admin@test.com', authorName: 'Admin Test', date: new Date().toISOString() }; await db.collection('articles').doc(String(fake.id)).set(fake); cachedArticles.unshift(fake); renderArticles(); renderHomeArticles(); renderAdmin('articles-manage'); toast('Article test ajouté'); }
-    async function uploadLogo() { if (!isAdmin()) return; let input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.onchange = async e => { let file = e.target.files[0]; let ref = storage.ref('logo/main'); await ref.put(file); let url = await ref.getDownloadURL(); await db.collection('settings').doc('logo').set({ url }); updateLogoDisplay(); toast('Logo mis à jour'); renderAdmin('settings'); }; input.click(); }
-    async function updateLogoDisplay() { let doc = await db.collection('settings').doc('logo').get(); let url = doc.exists ? doc.data().url : ''; ['navLogo', 'sidebarLogo', 'footerLogo'].forEach(id => { let el = document.getElementById(id); if(el) { if(url) { el.src = url; el.style.display = 'inline-block'; } else el.style.display = 'none'; } }); }
-    
-    // Sidebar
-    function openSidebar() { document.getElementById('sidebar').classList.add('open'); document.getElementById('overlay').classList.add('active'); }
-    function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('active'); }
-    
-    // Init
-    async function init() {
-        let jobsSnap = await db.collection('jobs').get(); cachedJobs = jobsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        if (cachedJobs.length === 0) { let dj = [{ id: 1, title: 'Aide Cuisinier', city: 'paris', contract: 'CDI', desc: '', date: '2024-01-01' }, { id: 2, title: 'Agent entretien', city: 'lyon', contract: 'CDD', desc: '', date: '2024-01-02' }]; for (let j of dj) await db.collection('jobs').doc(String(j.id)).set(j); cachedJobs = dj; }
-        let videosSnap = await db.collection('videos').get(); cachedVideos = videosSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        let postersSnap = await db.collection('posters').get(); cachedPosters = postersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        let articlesSnap = await db.collection('articles').orderBy('date', 'desc').get(); cachedArticles = articlesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        let adminsSnap = await db.collection('admins').get(); cachedAdmins = adminsSnap.docs.map(d => d.id);
-        if (!cachedAdmins.includes('mosab649@gmail.com')) { await db.collection('admins').doc('mosab649@gmail.com').set({ email: 'mosab649@gmail.com' }); cachedAdmins.push('mosab649@gmail.com'); }
+    <script>
+        // FIREBASE
+        const firebaseConfig = {
+            apiKey: "AIzaSyB2TlPdeABj2DFzh8lSb0vpTQuCaBlqfvA",
+            authDomain: "organisation-d97e7.firebaseapp.com",
+            projectId: "organisation-d97e7",
+            storageBucket: "organisation-d97e7.firebasestorage.app",
+            messagingSenderId: "770760173166",
+            appId: "1:770760173166:web:09297aa9e2021a33eb687f"
+        };
         
-        auth.onAuthStateChanged(async user => { if (user) { let doc = await db.collection('users').doc(user.uid).get(); currentUser = doc.exists ? doc.data() : { id: user.uid, name: user.email, email: user.email }; } else currentUser = null; updateUI(); renderArticles(); renderHomeArticles(); });
-        await updateLogoDisplay(); renderJobs(); populateCities(); renderVideos(); renderPosters(); renderVolunteering(); renderArticles(); renderHomeArticles();
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const storage = firebase.storage();
+
+        // Global variables
+        let cachedJobs = [];
+        let cachedVideos = [];
+        let cachedPosters = [];
+        let cachedArticles = [];
+        let cachedAdmins = [];
+        let currentUser = null;
+        let quillEditor = null;
         
-        document.getElementById('langSwitch').addEventListener('change', (e) => { currentLang = e.target.value; updateUILanguage(); });
-        document.getElementById('menuToggle').addEventListener('click', openSidebar); document.getElementById('overlay').addEventListener('click', closeSidebar); document.getElementById('navToggle').addEventListener('click', () => document.getElementById('navMenu').classList.toggle('open'));
-        document.getElementById('btnLogin').addEventListener('click', showLogin); document.getElementById('btnRegister').addEventListener('click', () => showSection('register')); document.getElementById('btnLogout').addEventListener('click', logout);
-        document.getElementById('uploadImageBtn').addEventListener('click', uploadArticleImage);
-        document.getElementById('formRegister').addEventListener('submit', (e) => { e.preventDefault(); registerEmail(document.getElementById('regName').value, document.getElementById('regEmail').value, document.getElementById('regPass').value, document.getElementById('regPass2').value); });
-        document.getElementById('formProfile').addEventListener('submit', (e) => { e.preventDefault(); saveProfile(document.getElementById('profStatus').value, document.getElementById('profCity').value, document.getElementById('profLegal').value); });
-        document.getElementById('jobSearch').addEventListener('input', renderJobs); document.getElementById('jobCity').addEventListener('change', renderJobs); document.getElementById('jobContract').addEventListener('change', renderJobs);
+        // Unsubscribe functions for realtime listeners
+        let unsubscribeJobs = null;
+        let unsubscribeVideos = null;
+        let unsubscribePosters = null;
+        let unsubscribeArticles = null;
+
+        // Utility functions
+        function toast(msg, type) {
+            type = type || 'success';
+            const c = document.getElementById('toastContainer');
+            const t = document.createElement('div');
+            t.className = 'toast toast-' + type;
+            t.textContent = msg;
+            c.appendChild(t);
+            setTimeout(() => t.remove(), 3000);
+        }
+
+        function showSection(id) {
+            document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
+            const s = document.getElementById(id);
+            if (s) {
+                s.classList.remove('hidden');
+                window.scrollTo({ top: s.offsetTop - 80, behavior: 'smooth' });
+            }
+            document.querySelectorAll('.nav-links a').forEach(l => l.classList.remove('active'));
+            const al = document.querySelector('.nav-links a[href="#' + id + '"]');
+            if (al) al.classList.add('active');
+            document.getElementById('navMenu').classList.remove('open');
+            closeSidebar();
+        }
+
+        function isLoggedIn() { return !!currentUser; }
+        function isAdmin() { return currentUser && cachedAdmins.includes(currentUser.email); }
+
+        function updateUI() {
+            const l = isLoggedIn(), a = isAdmin();
+            document.getElementById('btnLogin').classList.toggle('hidden', l);
+            document.getElementById('btnRegister').classList.toggle('hidden', l);
+            document.getElementById('btnLogout').classList.toggle('hidden', !l);
+            document.getElementById('adminLink').classList.toggle('hidden', !a);
+            document.getElementById('adminLinkSidebar').classList.toggle('hidden', !a);
+            const b = document.getElementById('userBadge');
+            if (l) { 
+                b.classList.remove('hidden'); 
+                b.textContent = '👤 ' + (currentUser.name || currentUser.email || 'User');
+            } else b.classList.add('hidden');
+        }
+
+        // AUTH FUNCTIONS
+        async function registerEmail(n, e, p, p2) {
+            if (p !== p2) { toast('❌ Les mots de passe ne correspondent pas', 'error'); return; }
+            if (p.length < 6) { toast('❌ 6 caractères minimum', 'error'); return; }
+            try {
+                const cred = await auth.createUserWithEmailAndPassword(e, p);
+                const userData = { 
+                    id: cred.user.uid, 
+                    name: n, 
+                    email: e, 
+                    provider: 'email', 
+                    createdAt: new Date().toISOString() 
+                };
+                await db.collection('users').doc(cred.user.uid).set(userData);
+                currentUser = userData;
+                updateUI();
+                toast('✅ Compte créé avec succès !');
+                showSection('profile');
+            } catch (err) {
+                toast('❌ ' + (err.code === 'auth/email-already-in-use' ? 'Email déjà utilisé' : err.message), 'error');
+            }
+        }
+
+        async function showLogin() {
+            const e = prompt('📧 Email :');
+            if (!e) return;
+            const p = prompt('🔑 Mot de passe :');
+            if (!p) return;
+            try {
+                const cred = await auth.signInWithEmailAndPassword(e, p);
+                const doc = await db.collection('users').doc(cred.user.uid).get();
+                currentUser = doc.exists ? doc.data() : { id: cred.user.uid, name: e, email: e };
+                updateUI();
+                toast('✅ Connecté avec succès !');
+                showSection('home');
+            } catch (err) {
+                toast('❌ Email ou mot de passe incorrect', 'error');
+            }
+        }
+
+        async function logout() {
+            await auth.signOut();
+            currentUser = null;
+            updateUI();
+            toast('👋 Déconnecté');
+            showSection('home');
+        }
+
+        function registerGoogle() {
+            const p = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(p).then(async r => {
+                const userData = { id: r.user.uid, name: r.user.displayName, email: r.user.email, provider: 'google' };
+                const userDoc = await db.collection('users').doc(r.user.uid).get();
+                if (!userDoc.exists) {
+                    await db.collection('users').doc(r.user.uid).set(userData);
+                }
+                currentUser = userData;
+                updateUI();
+                toast('✅ Connecté avec succès !');
+                showSection('profile');
+            }).catch(e => toast('❌ ' + e.message, 'error'));
+        }
+
+        function registerFacebook() {
+            const p = new firebase.auth.FacebookAuthProvider();
+            auth.signInWithPopup(p).then(async r => {
+                const userData = { id: r.user.uid, name: r.user.displayName, email: r.user.email, provider: 'facebook' };
+                const userDoc = await db.collection('users').doc(r.user.uid).get();
+                if (!userDoc.exists) {
+                    await db.collection('users').doc(r.user.uid).set(userData);
+                }
+                currentUser = userData;
+                updateUI();
+                toast('✅ Connecté avec succès !');
+                showSection('profile');
+            }).catch(e => toast('❌ ' + e.message, 'error'));
+        }
+
+        function registerPhone() {
+            const ph = prompt('📱 Téléphone (+33) :');
+            if (!ph) return;
+            const nm = prompt('👤 Nom complet :');
+            if (!nm) return;
+            currentUser = { id: 'phone_' + Date.now(), name: nm, email: ph, provider: 'phone' };
+            db.collection('users').doc(currentUser.id).set(currentUser);
+            updateUI();
+            toast('✅ Connecté avec succès !');
+            showSection('profile');
+        }
+
+        async function saveProfile(s, c, l) {
+            if (!currentUser) return;
+            currentUser.status = s;
+            currentUser.city = c;
+            currentUser.legalStatus = l;
+            currentUser.profileComplete = true;
+            await db.collection('users').doc(currentUser.id).set(currentUser, { merge: true });
+            updateUI();
+            toast('✅ Profil enregistré !');
+            showSection('jobs');
+        }
+
+        // RENDER FUNCTIONS
+        function renderJobs() {
+            const container = document.getElementById('jobsList');
+            if (!container) return;
+            let jobs = [...cachedJobs];
+            const cityFilter = document.getElementById('jobCity')?.value;
+            const contractFilter = document.getElementById('jobContract')?.value;
+            const searchFilter = document.getElementById('jobSearch')?.value.toLowerCase();
+            
+            if (cityFilter) jobs = jobs.filter(x => x.city === cityFilter);
+            if (contractFilter) jobs = jobs.filter(x => x.contract === contractFilter);
+            if (searchFilter) jobs = jobs.filter(x => x.title?.toLowerCase().includes(searchFilter));
+            
+            if (!jobs.length) { 
+                container.innerHTML = '<p class="loading">Aucune offre trouvée.</p>'; 
+                return; 
+            }
+            
+            container.innerHTML = jobs.map(job => `
+                <div class="job-card">
+                    <h4>${escapeHtml(job.title)}</h4>
+                    <span class="badge badge-blue">📍 ${escapeHtml(job.city)}</span>
+                    <span class="badge badge-green">📄 ${escapeHtml(job.contract)}</span>
+                    <p style="margin:.4rem 0;font-size:.85rem;">${escapeHtml(job.desc || '')}</p>
+                    <small>Publié le : ${job.date || new Date().toLocaleDateString()}</small>
+                    <br>
+                    <button class="btn btn-primary btn-sm" style="margin-top:.4rem;" onclick="applyJob('${job.id}')">Postuler</button>
+                </div>
+            `).join('');
+            populateCities();
+        }
+
+        function populateCities() {
+            const select = document.getElementById('jobCity');
+            if (!select) return;
+            const cities = [...new Set(cachedJobs.map(j => j.city))];
+            select.innerHTML = '<option value="">Toutes villes</option>' + cities.map(c => `<option value="${c}">${c.charAt(0).toUpperCase() + c.slice(1)}</option>`).join('');
+        }
+
+        function applyJob(id) {
+            if (!isLoggedIn()) { toast('⚠️ Veuillez vous connecter', 'warning'); showSection('register'); return; }
+            if (!currentUser.profileComplete) { toast('⚠️ Complétez votre profil', 'warning'); showSection('profile'); return; }
+            const job = cachedJobs.find(x => x.id == id);
+            if (job) toast(`✅ Candidature envoyée pour : ${job.title}`);
+        }
+
+        function renderVideos() {
+            const container = document.getElementById('videosList');
+            if (!container) return;
+            if (!cachedVideos.length) { 
+                container.innerHTML = '<p class="loading">Aucune vidéo disponible.</p>'; 
+                return; 
+            }
+            container.innerHTML = cachedVideos.map(video => `
+                <div class="card" style="padding:.8rem;">
+                    ${video.dataUrl ? 
+                        (video.fileType?.startsWith('video/') ? 
+                            `<video src="${video.dataUrl}" controls style="width:100%;height:140px;object-fit:cover;border-radius:8px;margin-bottom:.5rem;"></video>` :
+                            `<img src="${video.dataUrl}" alt="${escapeHtml(video.title)}" class="media-preview" loading="lazy">`) :
+                        '<div class="media-preview video"><i class="fas fa-play-circle"></i></div>'
+                    }
+                    <h4 style="font-size:.85rem;">${escapeHtml(video.title)}</h4>
+                    <span class="badge badge-blue">${escapeHtml(video.cat || 'Vidéo')}</span>
+                </div>
+            `).join('');
+        }
+
+        function renderPosters() {
+            const container = document.getElementById('postersList');
+            if (!container) return;
+            if (!cachedPosters.length) { 
+                container.innerHTML = '<p class="loading">Aucune affiche disponible.</p>'; 
+                return; 
+            }
+            container.innerHTML = cachedPosters.map(poster => `
+                <div class="card" style="padding:.8rem;">
+                    <img src="${poster.dataUrl}" alt="${escapeHtml(poster.title)}" class="media-preview" loading="lazy">
+                    <h4 style="font-size:.85rem;">${escapeHtml(poster.title)}</h4>
+                </div>
+            `).join('');
+        }
+
+        function renderHomeVideos() {
+            const container = document.getElementById('homeVideosList');
+            if (!container) return;
+            if (!cachedVideos.length) { 
+                container.innerHTML = '<p class="loading" style="grid-column:1/-1;">Aucun média pour le moment.</p>'; 
+                return; 
+            }
+            const recentVideos = [...cachedVideos].slice(-3).reverse();
+            container.innerHTML = recentVideos.map(video => `
+                <div class="card" style="padding:.8rem;">
+                    <div class="media-preview video"><i class="fas fa-play-circle"></i></div>
+                    <h4 style="font-size:.85rem;">${escapeHtml(video.title)}</h4>
+                </div>
+            `).join('');
+        }
+
+        function renderHomePosters() {
+            const container = document.getElementById('homePostersList');
+            if (!container) return;
+            if (!cachedPosters.length) { 
+                container.innerHTML = '<p class="loading" style="grid-column:1/-1;">Aucune affiche pour le moment.</p>'; 
+                return; 
+            }
+            const recentPosters = [...cachedPosters].slice(-3).reverse();
+            container.innerHTML = recentPosters.map(poster => `
+                <div class="card" style="padding:.8rem;">
+                    <img src="${poster.dataUrl}" alt="${escapeHtml(poster.title)}" class="media-preview" loading="lazy">
+                    <h4 style="font-size:.85rem;">${escapeHtml(poster.title)}</h4>
+                </div>
+            `).join('');
+        }
+
+        function renderVolunteering() {
+            const volunteers = [
+                { org: 'Restos du Cœur', city: 'Paris', task: 'Distribution alimentaire' },
+                { org: 'La Cimade', city: 'Lyon', task: 'Accompagnement juridique' },
+                { org: 'Secours Populaire', city: 'Marseille', task: 'Aide aux réfugiés' }
+            ];
+            const container = document.getElementById('volList');
+            if (container) {
+                container.innerHTML = volunteers.map(v => `
+                    <div class="job-card" style="border-left-color:var(--s)">
+                        <h4>${escapeHtml(v.org)}</h4>
+                        <span class="badge badge-blue">📍 ${escapeHtml(v.city)}</span>
+                        <p style="margin:.4rem 0;font-size:.85rem;">${escapeHtml(v.task)}</p>
+                        <button class="btn btn-outline btn-sm" style="border-color:var(--s);color:var(--s)" onclick="volSign('${escapeHtml(v.org)}')">Devenir bénévole</button>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function volSign(org) {
+            if (!isLoggedIn()) { toast('⚠️ Veuillez vous connecter', 'warning'); showSection('register'); return; }
+            toast(`✅ Inscription bénévole : ${org}`);
+        }
+
+        // ARTICLE FUNCTIONS with Rich Text Editor
+        function initQuillEditor() {
+            if (quillEditor) return;
+            quillEditor = new Quill('#editorContainer', {
+                theme: 'snow',
+                placeholder: 'Écrivez votre article ici... Utilisez les outils de mise en forme (gras, italique, listes, liens, etc.)',
+                modules: {
+                    toolbar: [
+                        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+                        ['bold', 'italic', 'underline', 'strike'],
+                        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                        ['link', 'image', 'video'],
+                        ['clean']
+                    ]
+                }
+            });
+        }
+
+        function toggleArticleForm() {
+            const form = document.getElementById('articleForm');
+            form.classList.toggle('hidden');
+            if (!form.classList.contains('hidden')) {
+                initQuillEditor();
+                document.getElementById('articleTitle').value = '';
+                if (quillEditor) quillEditor.setContents([]);
+            }
+        }
+
+        async function publishArticle() {
+            if (!isLoggedIn()) {
+                toast('⚠️ Veuillez vous connecter pour écrire un article', 'warning');
+                showSection('register');
+                return;
+            }
+            
+            const title = document.getElementById('articleTitle').value.trim();
+            if (!title) {
+                toast('❌ Titre requis', 'error');
+                return;
+            }
+            
+            const content = quillEditor ? quillEditor.root.innerHTML : '';
+            if (!content || content === '<p><br></p>') {
+                toast('❌ Contenu requis', 'error');
+                return;
+            }
+            
+            const article = {
+                id: Date.now(),
+                title: title,
+                content: content,
+                author: currentUser.email,
+                authorName: currentUser.name || currentUser.email,
+                date: new Date().toISOString(),
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            
+            try {
+                await db.collection('articles').doc(String(article.id)).set(article);
+                toggleArticleForm();
+                toast('✅ Article publié avec succès !');
+            } catch (err) {
+                toast('❌ Erreur: ' + err.message, 'error');
+            }
+        }
+
+        function renderArticles() {
+            const container = document.getElementById('articlesList');
+            if (!container) return;
+            
+            if (!cachedArticles.length) {
+                container.innerHTML = '<p class="loading">Aucun article pour le moment. Soyez le premier à écrire !</p>';
+                return;
+            }
+            
+            container.innerHTML = cachedArticles.map(article => `
+                <div class="article-card" onclick="viewFullArticle('${article.id}')">
+                    <h3>📄 ${escapeHtml(article.title)}</h3>
+                    <div class="article-meta">
+                        <span>✍️ ${escapeHtml(article.authorName)}</span>
+                        <span>📅 ${new Date(article.date).toLocaleDateString()}</span>
+                    </div>
+                    <div class="article-excerpt">
+                        ${stripHtml(article.content).substring(0, 150)}...
+                    </div>
+                    ${(isAdmin() || currentUser?.email === article.author) ? `
+                        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); deleteArticle('${article.id}')" style="margin-top: 10px;">
+                            🗑️ Supprimer
+                        </button>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        function renderHomeArticles() {
+            const container = document.getElementById('homeArticlesList');
+            if (!container) return;
+            
+            if (!cachedArticles.length) {
+                container.innerHTML = '<p class="loading">Aucun article récent.</p>';
+                return;
+            }
+            
+            const recentArticles = cachedArticles.slice(0, 3);
+            container.innerHTML = recentArticles.map(article => `
+                <div class="job-card" onclick="viewFullArticle('${article.id}')" style="cursor:pointer;">
+                    <h4>📄 ${escapeHtml(article.title)}</h4>
+                    <small>${escapeHtml(article.authorName)}</small>
+                    <p style="margin-top: 5px;">${stripHtml(article.content).substring(0, 100)}...</p>
+                </div>
+            `).join('');
+        }
+
+        function stripHtml(html) {
+            if (!html) return '';
+            const tmp = document.createElement('div');
+            tmp.innerHTML = html;
+            return tmp.textContent || tmp.innerText || '';
+        }
+
+        function viewFullArticle(id) {
+            const article = cachedArticles.find(a => a.id == id);
+            if (!article) return;
+            
+            const modal = document.getElementById('articleModal');
+            const contentDiv = document.getElementById('modalArticleContent');
+            
+            contentDiv.innerHTML = `
+                <h1 style="color: var(--p); margin-bottom: 1rem;">${escapeHtml(article.title)}</h1>
+                <div style="color: var(--t2); margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--bdr);">
+                    ✍️ ${escapeHtml(article.authorName)} - 📅 ${new Date(article.date).toLocaleString()}
+                </div>
+                <div class="article-content">
+                    ${article.content}
+                </div>
+            `;
+            
+            modal.classList.add('active');
+        }
+
+        function closeArticleModal() {
+            document.getElementById('articleModal').classList.remove('active');
+        }
+
+        async function deleteArticle(id) {
+            if (!confirm('Supprimer cet article ?')) return;
+            try {
+                await db.collection('articles').doc(String(id)).delete();
+                toast('✅ Article supprimé');
+            } catch (err) {
+                toast('❌ Erreur: ' + err.message, 'error');
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+
+        // ADMIN FUNCTIONS
+        async function renderAdmin(tab) {
+            const container = document.getElementById('adminContent');
+            if (!container) return;
+            
+            if (tab === 'dashboard') {
+                const usersSnap = await db.collection('users').get();
+                container.innerHTML = `
+                    <div class="stat-grid">
+                        <div class="card"><div class="stat-num">${usersSnap.size}</div><div>Utilisateurs</div></div>
+                        <div class="card"><div class="stat-num">${cachedJobs.length}</div><div>Offres</div></div>
+                        <div class="card"><div class="stat-num">${cachedVideos.length}</div><div>Vidéos</div></div>
+                        <div class="card"><div class="stat-num">${cachedPosters.length}</div><div>Affiches</div></div>
+                        <div class="card"><div class="stat-num">${cachedArticles.length}</div><div>Articles</div></div>
+                    </div>
+                `;
+            } 
+            else if (tab === 'users') {
+                const snap = await db.collection('users').get();
+                container.innerHTML = `
+                    <table>
+                        <thead><tr><th>Nom</th><th>Email</th><th>Action</th></tr></thead>
+                        <tbody>
+                            ${snap.docs.map(doc => `
+                                <tr>
+                                    <td>${escapeHtml(doc.data().name || '-')}</td>
+                                    <td>${escapeHtml(doc.data().email)}</td>
+                                    <td><button class="btn btn-danger btn-sm" onclick="deleteUser('${doc.id}')">🗑️</button></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } 
+            else if (tab === 'jobs-manage') {
+                container.innerHTML = `
+                    <button class="btn btn-primary btn-sm" onclick="addJob()" style="margin-bottom:.75rem;">+ Offre</button>
+                    <table>
+                        <thead><tr><th>Titre</th><th>Ville</th><th>Action</th></tr></thead>
+                        <tbody>
+                            ${cachedJobs.map(job => `
+                                <tr>
+                                    <td>${escapeHtml(job.title)}</td>
+                                    <td>${escapeHtml(job.city)}</td>
+                                    <td><button class="btn btn-danger btn-sm" onclick="deleteJob('${job.id}')">🗑️</button></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } 
+            else if (tab === 'videos-manage') {
+                container.innerHTML = `
+                    <button class="btn btn-primary btn-sm" onclick="triggerVideoUpload()" style="margin-bottom:.75rem;">+ Vidéo (max 20MB)</button>
+                    <table>
+                        <thead><tr><th>Aperçu</th><th>Titre</th><th>Action</th></tr></thead>
+                        <tbody>
+                            ${cachedVideos.map(video => `
+                                <tr>
+                                    <td>${video.dataUrl ? '✅' : '📹'}</td>
+                                    <td>${escapeHtml(video.title)}</td>
+                                    <td><button class="btn btn-danger btn-sm" onclick="deleteVideo('${video.id}')">🗑️</button></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } 
+            else if (tab === 'posters-manage') {
+                container.innerHTML = `
+                    <button class="btn btn-primary btn-sm" onclick="triggerPosterUpload()" style="margin-bottom:.75rem;">+ Affiche</button>
+                    <table>
+                        <thead><tr><th>Aperçu</th><th>Titre</th><th>Action</th></tr></thead>
+                        <tbody>
+                            ${cachedPosters.map(poster => `
+                                <tr>
+                                    <td>${poster.dataUrl ? '✅' : '🖼️'}</td>
+                                    <td>${escapeHtml(poster.title)}</td>
+                                    <td><button class="btn btn-danger btn-sm" onclick="deletePoster('${poster.id}')">🗑️</button></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            }
+            else if (tab === 'articles-manage') {
+                container.innerHTML = `
+                    <button class="btn btn-primary btn-sm" onclick="addDemoArticle()" style="margin-bottom:.75rem;">+ Article démo</button>
+                    <table>
+                        <thead><tr><th>Titre</th><th>Auteur</th><th>Action</th></tr></thead>
+                        <tbody>
+                            ${cachedArticles.map(article => `
+                                <tr>
+                                    <td>${escapeHtml(article.title)}</td>
+                                    <td>${escapeHtml(article.author)}</td>
+                                    <td><button class="btn btn-danger btn-sm" onclick="deleteArticle('${article.id}')">🗑️</button></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            }
+            else if (tab === 'admins') {
+                container.innerHTML = `
+                    <button class="btn btn-primary btn-sm" onclick="addAdmin()" style="margin-bottom:.75rem;">+ Admin</button>
+                    <table>
+                        <thead><tr><th>Email</th><th>Action</th></tr></thead>
+                        <tbody>
+                            ${cachedAdmins.map(email => `
+                                <tr>
+                                    <td>${escapeHtml(email)}</td>
+                                    <td>${email !== 'mosab649@gmail.com' ? 
+                                        `<button class="btn btn-danger btn-sm" onclick="removeAdmin('${email}')">🗑️</button>` : 
+                                        '<span class="badge badge-blue">Principal</span>'}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            }
+            else if (tab === 'settings') {
+                const doc = await db.collection('settings').doc('logo').get();
+                const logoUrl = doc.exists ? doc.data().url : '';
+                container.innerHTML = `
+                    <h3>🖼️ Logo</h3>
+                    ${logoUrl ? `<img src="${logoUrl}" style="width:100px;height:100px;object-fit:contain;border:2px solid var(--bdr);border-radius:8px;margin-bottom:.5rem;">` : 
+                        '<div style="width:100px;height:100px;border:2px dashed var(--bdr);border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:.5rem;">Aucun logo</div>'}
+                    <br>
+                    <button class="btn btn-primary btn-sm" onclick="triggerLogoUpload()">📁 Changer le logo</button>
+                `;
+            }
+        }
+
+        // FILE UPLOAD FUNCTIONS
+        async function triggerVideoUpload() {
+            if (!isAdmin()) { toast('⚠️ Accès réservé aux administrateurs', 'warning'); return; }
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'video/*';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                if (file.size > 50 * 1024 * 1024) { 
+                    toast('❌ Fichier trop volumineux (max 50MB)', 'error'); 
+                    return; 
+                }
+                toast('📤 Upload de la vidéo en cours...', 'warning');
+                
+                const storageRef = storage.ref('videos/' + Date.now() + '_' + file.name);
+                await storageRef.put(file);
+                const url = await storageRef.getDownloadURL();
+                const title = prompt('🎬 Titre de la vidéo :', file.name) || 'Vidéo';
+                
+                const video = { 
+                    id: Date.now(), 
+                    title: title, 
+                    dataUrl: url, 
+                    fileType: file.type, 
+                    cat: 'Formation', 
+                    lang: 'fr',
+                    uploadedAt: new Date().toISOString()
+                };
+                
+                await db.collection('videos').doc(String(video.id)).set(video);
+                toast('✅ Vidéo ajoutée avec succès !');
+            };
+            input.click();
+        }
+
+        async function triggerPosterUpload() {
+            if (!isAdmin()) { toast('⚠️ Accès réservé aux administrateurs', 'warning'); return; }
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                toast('📤 Upload de l\'affiche en cours...', 'warning');
+                
+                const storageRef = storage.ref('posters/' + Date.now() + '_' + file.name);
+                await storageRef.put(file);
+                const url = await storageRef.getDownloadURL();
+                const title = prompt('🖼️ Titre de l\'affiche :', file.name) || 'Affiche';
+                
+                const poster = { 
+                    id: Date.now(), 
+                    title: title, 
+                    dataUrl: url, 
+                    topic: 'Information',
+                    uploadedAt: new Date().toISOString()
+                };
+                
+                await db.collection('posters').doc(String(poster.id)).set(poster);
+                toast('✅ Affiche ajoutée avec succès !');
+            };
+            input.click();
+        }
+
+        async function triggerLogoUpload() {
+            if (!isAdmin()) { toast('⚠️ Accès réservé aux administrateurs', 'warning'); return; }
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                toast('📤 Upload du logo en cours...', 'warning');
+                
+                const storageRef = storage.ref('settings/logo');
+                await storageRef.put(file);
+                const url = await storageRef.getDownloadURL();
+                await db.collection('settings').doc('logo').set({ url });
+                await updateLogoDisplay();
+                if (document.getElementById('adminContent').style.display !== 'none') {
+                    renderAdmin('settings');
+                }
+                toast('✅ Logo mis à jour !');
+            };
+            input.click();
+        }
+
+        async function updateLogoDisplay() {
+            const doc = await db.collection('settings').doc('logo').get();
+            const logoUrl = doc.exists ? doc.data().url : '';
+            
+            const navLogo = document.getElementById('navLogo');
+            const navIcon = document.getElementById('navIcon');
+            const footerLogo = document.getElementById('footerLogo');
+            const sidebarLogo = document.getElementById('sidebarLogo');
+            
+            if (logoUrl) {
+                if (navLogo) { navLogo.src = logoUrl; navLogo.style.display = 'inline-block'; }
+                if (navIcon) navIcon.style.display = 'none';
+                if (footerLogo) { footerLogo.src = logoUrl; footerLogo.style.display = 'block'; }
+                if (sidebarLogo) { sidebarLogo.src = logoUrl; sidebarLogo.style.display = 'block'; }
+            } else {
+                if (navLogo) navLogo.style.display = 'none';
+                if (navIcon) navIcon.style.display = 'inline-block';
+                if (footerLogo) footerLogo.style.display = 'none';
+                if (sidebarLogo) sidebarLogo.style.display = 'none';
+            }
+        }
+
+        // CRUD Operations
+        async function addJob() {
+            const title = prompt('Titre :');
+            if (!title) return;
+            const city = prompt('Ville :');
+            if (!city) return;
+            const contract = prompt('Contrat :', 'CDI') || 'CDI';
+            const desc = prompt('Description :', '') || '';
+            const job = { 
+                id: Date.now(), 
+                title, 
+                city: city.toLowerCase(), 
+                contract, 
+                desc, 
+                date: new Date().toISOString().split('T')[0] 
+            };
+            await db.collection('jobs').doc(String(job.id)).set(job);
+            toast('✅ Offre ajoutée');
+        }
+
+        async function deleteJob(id) {
+            if (!confirm('Supprimer cette offre ?')) return;
+            await db.collection('jobs').doc(String(id)).delete();
+            toast('🗑️ Offre supprimée');
+        }
+
+        async function deleteVideo(id) {
+            if (!confirm('Supprimer cette vidéo ?')) return;
+            await db.collection('videos').doc(String(id)).delete();
+            toast('🗑️ Vidéo supprimée');
+        }
+
+        async function deletePoster(id) {
+            if (!confirm('Supprimer cette affiche ?')) return;
+            await db.collection('posters').doc(String(id)).delete();
+            toast('🗑️ Affiche supprimée');
+        }
+
+        async function deleteUser(id) {
+            if (!confirm('Supprimer cet utilisateur ?')) return;
+            await db.collection('users').doc(id).delete();
+            renderAdmin('users');
+            toast('🗑️ Utilisateur supprimé');
+        }
+
+        async function addAdmin() {
+            const email = prompt('Email admin :');
+            if (!email) return;
+            if (cachedAdmins.includes(email)) { toast('⚠️ Déjà admin', 'warning'); return; }
+            await db.collection('admins').doc(email).set({ email });
+            toast('✅ Admin ajouté');
+        }
+
+        async function removeAdmin(email) {
+            if (email === 'mosab649@gmail.com') { toast('⚠️ Admin principal protégé', 'warning'); return; }
+            await db.collection('admins').doc(email).delete();
+            toast('🗑️ Admin supprimé');
+        }
+
+        async function addDemoArticle() {
+            const demoContent = `
+                <h2>Bienvenue sur notre plateforme</h2>
+                <p>Cette plateforme est dédiée à l'<strong>insertion professionnelle</strong> des réfugiés et migrants en France.</p>
+                <p>Nous proposons :</p>
+                <ul>
+                    <li>Des offres d'emploi adaptées</li>
+                    <li>Des formations gratuites</li>
+                    <li>Des ressources éducatives</li>
+                </ul>
+                <p>N'hésitez pas à <a href="#register">créer un compte</a> pour profiter de tous nos services.</p>
+            `;
+            
+            const article = {
+                id: Date.now(),
+                title: 'Article de démonstration',
+                content: demoContent,
+                author: 'admin@nouvelhorizon.com',
+                authorName: 'Administrateur',
+                date: new Date().toISOString(),
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            
+            await db.collection('articles').doc(String(article.id)).set(article);
+            toast('✅ Article démo ajouté');
+        }
+
+        // ========== REALTIME LISTENERS (LA MAGIE!) ==========
+        function setupRealtimeListeners() {
+            // Jobs listener
+            unsubscribeJobs = db.collection('jobs').onSnapshot((snapshot) => {
+                cachedJobs = [];
+                snapshot.forEach(doc => {
+                    cachedJobs.push({ id: doc.id, ...doc.data() });
+                });
+                renderJobs();
+                if (document.getElementById('adminContent') && !document.getElementById('admin').classList.contains('hidden')) {
+                    const activeTab = document.querySelector('.admin-tab.active');
+                    if (activeTab && activeTab.getAttribute('data-tab') === 'jobs-manage') {
+                        renderAdmin('jobs-manage');
+                    }
+                }
+                console.log('✅ Jobs mis à jour en temps réel');
+            }, (error) => {
+                console.error('Erreur jobs listener:', error);
+            });
+            
+            // Videos listener
+            unsubscribeVideos = db.collection('videos').onSnapshot((snapshot) => {
+                cachedVideos = [];
+                snapshot.forEach(doc => {
+                    cachedVideos.push({ id: doc.id, ...doc.data() });
+                });
+                renderVideos();
+                renderHomeVideos();
+                if (document.getElementById('adminContent') && !document.getElementById('admin').classList.contains('hidden')) {
+                    const activeTab = document.querySelector('.admin-tab.active');
+                    if (activeTab && activeTab.getAttribute('data-tab') === 'videos-manage') {
+                        renderAdmin('videos-manage');
+                    }
+                }
+                console.log('✅ Vidéos mises à jour en temps réel');
+            }, (error) => {
+                console.error('Erreur videos listener:', error);
+            });
+            
+            // Posters listener
+            unsubscribePosters = db.collection('posters').onSnapshot((snapshot) => {
+                cachedPosters = [];
+                snapshot.forEach(doc => {
+                    cachedPosters.push({ id: doc.id, ...doc.data() });
+                });
+                renderPosters();
+                renderHomePosters();
+                if (document.getElementById('adminContent') && !document.getElementById('admin').classList.contains('hidden')) {
+                    const activeTab = document.querySelector('.admin-tab.active');
+                    if (activeTab && activeTab.getAttribute('data-tab') === 'posters-manage') {
+                        renderAdmin('posters-manage');
+                    }
+                }
+                console.log('✅ Affiches mises à jour en temps réel');
+            }, (error) => {
+                console.error('Erreur posters listener:', error);
+            });
+            
+            // Articles listener
+            unsubscribeArticles = db.collection('articles').orderBy('date', 'desc').onSnapshot((snapshot) => {
+                cachedArticles = [];
+                snapshot.forEach(doc => {
+                    cachedArticles.push({ id: doc.id, ...doc.data() });
+                });
+                renderArticles();
+                renderHomeArticles();
+                if (document.getElementById('adminContent') && !document.getElementById('admin').classList.contains('hidden')) {
+                    const activeTab = document.querySelector('.admin-tab.active');
+                    if (activeTab && activeTab.getAttribute('data-tab') === 'articles-manage') {
+                        renderAdmin('articles-manage');
+                    }
+                }
+                console.log('✅ Articles mis à jour en temps réel');
+            }, (error) => {
+                console.error('Erreur articles listener:', error);
+            });
+        }
+
+        // SIDEBAR FUNCTIONS
+        function openSidebar() {
+            document.getElementById('sidebar').classList.add('open');
+            document.getElementById('overlay').classList.add('active');
+        }
         
-        document.querySelectorAll('.sidebar-nav a, .nav-links a').forEach(link => { link.addEventListener('click', (e) => { e.preventDefault(); let href = link.getAttribute('href'); if (href && href.startsWith('#')) { let id = href.substring(1); if (id === 'admin' && !isAdmin()) return toast('Accès réservé', 'warning'); showSection(id); if (id === 'admin') renderAdmin('dashboard'); if (id === 'forum-articles') renderArticles(); } }); });
-        document.querySelectorAll('.admin-tab').forEach(tab => { tab.addEventListener('click', () => { document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active')); tab.classList.add('active'); renderAdmin(tab.getAttribute('data-tab')); }); });
+        function closeSidebar() {
+            document.getElementById('sidebar').classList.remove('open');
+            document.getElementById('overlay').classList.remove('active');
+        }
+
+        // TRANSLATION
+        function translatePage(lang) {
+            if (lang === 'ar') {
+                document.body.classList.add('rtl');
+                document.querySelector('.disclaimer-bar').innerHTML = '⚠️ نحن لا ندعم الهجرة غير الشرعية';
+            } else if (lang === 'en') {
+                document.body.classList.remove('rtl');
+                document.querySelector('.disclaimer-bar').innerHTML = '⚠️ We do not support illegal immigration';
+            } else {
+                document.body.classList.remove('rtl');
+                document.querySelector('.disclaimer-bar').innerHTML = '⚠️ Nous ne soutenons pas l\'immigration illégale';
+            }
+        }
+
+        // ========== INITIALIZATION ==========
+        async function init() {
+            // Load admins first
+            const adminsSnap = await db.collection('admins').get();
+            cachedAdmins = adminsSnap.docs.map(doc => doc.id);
+            if (cachedAdmins.length === 0 || !cachedAdmins.includes('mosab649@gmail.com')) {
+                await db.collection('admins').doc('mosab649@gmail.com').set({ email: 'mosab649@gmail.com' });
+                cachedAdmins = ['mosab649@gmail.com'];
+            }
+            
+            // Setup realtime listeners
+            setupRealtimeListeners();
+            
+            // Auth state
+            auth.onAuthStateChanged(async (user) => {
+                if (user) {
+                    const doc = await db.collection('users').doc(user.uid).get();
+                    currentUser = doc.exists ? doc.data() : { id: user.uid, name: user.email, email: user.email };
+                } else {
+                    currentUser = null;
+                }
+                updateUI();
+            });
+            
+            // Load initial data for stats
+            await Promise.all([
+                db.collection('jobs').get(),
+                db.collection('videos').get(),
+                db.collection('posters').get(),
+                db.collection('articles').get()
+            ]);
+            
+            updateUI();
+            await updateLogoDisplay();
+            renderVolunteering();
+            
+            // Event Listeners
+            document.getElementById('langSwitch').addEventListener('change', (e) => translatePage(e.target.value));
+            document.getElementById('menuToggle').addEventListener('click', openSidebar);
+            document.getElementById('overlay').addEventListener('click', closeSidebar);
+            document.getElementById('navToggle').addEventListener('click', () => {
+                document.getElementById('navMenu').classList.toggle('open');
+            });
+            document.getElementById('btnLogin').addEventListener('click', showLogin);
+            document.getElementById('btnRegister').addEventListener('click', () => showSection('register'));
+            document.getElementById('btnLogout').addEventListener('click', logout);
+            
+            document.getElementById('formRegister').addEventListener('submit', (e) => {
+                e.preventDefault();
+                registerEmail(
+                    document.getElementById('regName').value,
+                    document.getElementById('regEmail').value,
+                    document.getElementById('regPass').value,
+                    document.getElementById('regPass2').value
+                );
+            });
+            
+            document.getElementById('formProfile').addEventListener('submit', (e) => {
+                e.preventDefault();
+                saveProfile(
+                    document.getElementById('profStatus').value,
+                    document.getElementById('profCity').value,
+                    document.getElementById('profLegal').value
+                );
+            });
+            
+            document.getElementById('jobSearch')?.addEventListener('input', renderJobs);
+            document.getElementById('jobCity')?.addEventListener('change', renderJobs);
+            document.getElementById('jobContract')?.addEventListener('change', renderJobs);
+            
+            // Navigation
+            document.querySelectorAll('.nav-links a, .sidebar-nav a').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const href = link.getAttribute('href');
+                    if (href && href.startsWith('#')) {
+                        const id = href.substring(1);
+                        if (id === 'admin' && !isAdmin()) { 
+                            toast('⚠️ Accès réservé aux administrateurs', 'warning'); 
+                            return; 
+                        }
+                        showSection(id);
+                        if (id === 'admin') renderAdmin('dashboard');
+                    }
+                });
+            });
+            
+            // Admin tabs
+            document.querySelectorAll('.admin-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    renderAdmin(tab.getAttribute('data-tab'));
+                });
+            });
+            
+            translatePage('fr');
+            console.log('✅ Application prête - Realtime + Rich Text Editor');
+            console.log('👤 Admin par défaut: mosab649@gmail.com');
+        }
         
-        updateUILanguage(); console.log('✅ Code final optimisé - Articles (créer/modifier/supprimer), Images, Vidéos, Logo');
-    }
-    document.addEventListener('DOMContentLoaded', init);
-</script>
+        // Close modal on outside click
+        document.getElementById('articleModal')?.addEventListener('click', (e) => {
+            if (e.target === document.getElementById('articleModal')) {
+                closeArticleModal();
+            }
+        });
+        
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
 </body>
 </html>
